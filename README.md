@@ -107,6 +107,7 @@ flowchart TD
 ### 1. Prerequisites
 - Node.js 18+ (tested on Node.js v20+)
 - npm or pnpm
+- Windows, macOS, or Linux (cross-platform scripts via `dotenv-cli`)
 
 ### 2. Clone and Install
 ```bash
@@ -115,33 +116,82 @@ cd bizflow-pilot
 npm install
 ```
 
-### 3. Configure Environment Variables
-Copy `.env.example` to `.env`:
+### 3. Environment Configuration
+
+BizFlow Pilot supports twin environment setups:
+- `.env.testnet.local` for Arc Testnet (Circle Wallets SDK / staging simulation)
+- `.env.mainnet.local` for Arc Mainnet (Viem direct signer with real USDC on Arc)
+
+Copy `.env.example` to set up your local environment:
 ```bash
 cp .env.example .env
 ```
-Default parameters are pre-configured for local testing and Arc Testnet simulation.
 
-### 4. Setup Database & Seed Demo Data
+### 4. Running Arc Mainnet vs Testnet
+
+#### Testnet Mode (Staging)
 ```bash
-# Push Prisma schema to local SQLite database
-npx prisma db push
-
-# Seed the 4 test cases (Valid PO, Duplicate, Qty Mismatch, Prompt Injection)
-npx tsx prisma/seed.ts
+npm run dev:testnet          # Runs on http://localhost:3001 with testnet config
 ```
 
-### 5. Run Automated Tests
+#### Mainnet Mode (Production)
+```bash
+# 1. Run the safe read-only preflight check (validates RPC, chain ID 5042, balances, caps, blocklists):
+npm run preflight:mainnet
+
+# 2. Seed demo-scale mainnet invoices (0.50 USDC total, 10 bags @ 0.05 USDC):
+npm run seed:mainnet
+
+# 3. (Optional) Deploy AuditAnchor to Arc Mainnet (requires explicit --yes):
+npm run deploy:anchor:mainnet -- --yes
+
+# 4. Launch Mainnet development server:
+npm run dev:mainnet          # Runs on http://localhost:3001 with mainnet config
+```
+
+### 5. Automated Verification & Testing
+
+#### Unit & Security Test Suite (42 tests):
 ```bash
 npm test
 ```
-Executes all 27 unit tests across money arithmetic, 3-way matching, duplicate screening, 10-rule policy engine, AI agent sanitizer, and cryptographic hash chain verification.
+Verifies:
+- 3-Way matching arithmetic (`tests/matching.test.ts`)
+- Branded currency math (`tests/money.test.ts`)
+- AI agent prompt-injection defense (`tests/agent.test.ts`)
+- 10-rule deterministic policy enforcement (`tests/policy.test.ts`)
+- Full golden-path e2e acceptance (`tests/e2e.test.ts`)
+- Cryptographic hash-chain integrity & tampering detection (`tests/audit.test.ts`)
+- Air-gap key isolation (`tests/secrets.test.ts`)
+- Secret & DB URL leak prevention on all 10 routes (`tests/leak.test.ts`)
 
-### 6. Start Development Server
+#### Playwright End-to-End Smoke Test:
 ```bash
-npm run dev
+npm run test:e2e
 ```
-Open [http://localhost:3000](http://localhost:3000) to access the **Command Center**.
+Visits all 10 application routes (`/`, `/inventory`, `/invoices`, `/agent`, `/payments`, `/audit`, `/simulator`, `/settings`, `/about`, `/verify/demo`), interacts with tabs, confirmation modals, kill-switch toggles, hash verification, and asserts 0 unhandled console errors or 5xx responses.
+
+---
+
+## Production Deployment (Vercel)
+
+When deploying BizFlow Pilot to Vercel, configure these environment variables in your project settings:
+
+| Variable Name | Purpose | Example / Required Format |
+|---|---|---|
+| `NEXT_PUBLIC_NETWORK_MODE` | Active network mode | `mainnet` or `testnet` |
+| `NEXT_PUBLIC_CHAIN_ID` | Arc chain identifier | `5042` (mainnet) or `5042002` (testnet) |
+| `NEXT_PUBLIC_RPC_URL` | Primary Arc RPC endpoint | `https://rpc.mainnet.arc.io` |
+| `NEXT_PUBLIC_EXPLORER_URL` | Block explorer base URL | `https://explorer.arc.io` |
+| `DATABASE_URL` | Supabase / Neon pooled URL | `postgresql://...` (pgbouncer) |
+| `DIRECT_URL` | Direct DB connection (session) | `postgresql://...` (port 5432) |
+| `TREASURY_PRIVATE_KEY` | Server-held signer key | `0x...` (Air-gapped on server, never sent to client) |
+| `VENDOR_WALLET_ADDRESS` | Whitelisted vendor address | `0x...` (Your recipient wallet) |
+| `MAX_MAINNET_PAYMENT_USDC` | Safety ceiling per payment | `1.00` |
+| `MIN_RESERVE_USDC` | Required operating reserve floor| `0.25` |
+| `ARC_ANCHOR_CONTRACT_ADDRESS`| AuditAnchor address on Arc | `0x...` |
+
+> **Security Note:** BizFlow Pilot enforces strict client/server boundaries. Private keys, database URLs, and Circle entity secrets are strictly prohibited from client bundles and are verified by `tests/leak.test.ts`.
 
 ---
 
