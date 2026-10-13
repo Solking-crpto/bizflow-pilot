@@ -1,5 +1,6 @@
 import { UsdcAtomic, UsdcMath, usdcAtomic, formatUsdc } from "../money";
 import { sha256, canonicalJson } from "../crypto";
+import { isBlocklistedWallet } from "../security/walletBlocklist";
 
 export interface PolicyRuleResult {
   ruleCode: string;
@@ -86,6 +87,29 @@ export function evaluatePolicy(context: PolicyContext): PolicyEvaluationOutput {
       ? `Vendor recently updated wallet. 24h cooling-off period active until ${context.vendor.walletCooldownUntil?.toISOString()}.`
       : "Destination wallet matches authorized vendor record with no active cooldown.",
   });
+
+  // RULE 2B: Known-Public Test Wallet Blocklist (Hardhat / Anvil default accounts)
+  const isBlocklisted = isBlocklistedWallet(context.invoice.remittanceWallet);
+  if (isBlocklisted) {
+    const isMainnet = context.network === "mainnet";
+    results.push({
+      ruleCode: "RULE_BLOCKLISTED_WALLET",
+      ruleName: "Known-Public Test Wallet Blocklist",
+      passed: !isMainnet,
+      severity: isMainnet ? "block" : "review",
+      reason: isMainnet
+        ? `SECURITY ALERT: Destination ${context.invoice.remittanceWallet} is a known Hardhat/Anvil default test account with public keys. Mainnet settlement strictly blocked.`
+        : `WARNING: Destination ${context.invoice.remittanceWallet} is a known testnet account. Permitted for staging/testnet demonstration only.`,
+    });
+  } else {
+    results.push({
+      ruleCode: "RULE_BLOCKLISTED_WALLET",
+      ruleName: "Known-Public Test Wallet Blocklist",
+      passed: true,
+      severity: "block",
+      reason: "Destination address passed public key leak and testnet blocklist verification.",
+    });
+  }
 
   // RULE 3: Three-way match tolerance check
   const isMatchValid = context.invoice.matchStatus === "exact_match";

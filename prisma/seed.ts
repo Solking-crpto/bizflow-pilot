@@ -65,12 +65,13 @@ async function main() {
   });
 
   // 4. Approved Vendor
+  const vendorWallet = (process.env.VENDOR_WALLET_ADDRESS || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8").trim();
   const vendor = await prisma.vendor.create({
     data: {
       id: "vendor-dangote-01",
       orgId: org.id,
       name: "Dangote Cement Distribution (demo)",
-      walletAddress: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      walletAddress: vendorWallet,
       status: "active",
       perVendorLimitUsdc: 15000000000n, // 15,000 USDC
     },
@@ -131,7 +132,7 @@ async function main() {
   // 7. Seed Invoices (The 4 Test Cases)
 
   // Invoice 1: Golden Path (Matched, Clean, Ready for Agent Proposal & Policy Approval)
-  const inv1Content = `Dangote Cement Distribution Ltd\nInvoice #: INV-DANGOTE-401\nPO Reference: PO-2026-0089\nItem: Portland Cement (50kg Bag)\nQuantity: 200 bags\nUnit Price: 8.50 USDC\nSubtotal: 1,700.00 USDC\nTax/Fee: 0.00 USDC\nTotal Due: 1,700.00 USDC\nRemittance Address: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8\nPayment Terms: Net 15`;
+  const inv1Content = `Dangote Cement Distribution Ltd\nInvoice #: INV-DANGOTE-401\nPO Reference: PO-2026-0089\nItem: Portland Cement (50kg Bag)\nQuantity: 200 bags\nUnit Price: 8.50 USDC\nSubtotal: 1,700.00 USDC\nTax/Fee: 0.00 USDC\nTotal Due: 1,700.00 USDC\nRemittance Address: ${vendorWallet}\nPayment Terms: Net 15`;
   const inv1 = await prisma.invoice.create({
     data: {
       id: "inv-401",
@@ -146,7 +147,7 @@ async function main() {
         vendorName: "Dangote Cement Distribution (demo)",
         invoiceNumber: "INV-DANGOTE-401",
         poNumber: "PO-2026-0089",
-        remittanceWallet: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        remittanceWallet: vendorWallet,
         quantity: 200,
         unitPrice: 8.5,
         total: 1700.0,
@@ -160,7 +161,7 @@ async function main() {
   });
 
   // Invoice 2: Duplicate Attempt (Same PO & amount, flagged and blocked)
-  const inv2Content = `Dangote Cement Distribution Ltd\nDuplicate Copy\nInvoice #: INV-DANGOTE-401\nPO Reference: PO-2026-0089\nTotal: 1,700.00 USDC\nRemittance: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8`;
+  const inv2Content = `Dangote Cement Distribution Ltd\nDuplicate Copy\nInvoice #: INV-DANGOTE-401\nPO Reference: PO-2026-0089\nTotal: 1,700.00 USDC\nRemittance: ${vendorWallet}`;
   await prisma.invoice.create({
     data: {
       id: "inv-401-dup",
@@ -175,7 +176,7 @@ async function main() {
         vendorName: "Dangote Cement Distribution (demo)",
         invoiceNumber: "INV-DANGOTE-401-COPY",
         poNumber: "PO-2026-0089",
-        remittanceWallet: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        remittanceWallet: vendorWallet,
         quantity: 200,
         unitPrice: 8.5,
         total: 1700.0,
@@ -190,7 +191,7 @@ async function main() {
   });
 
   // Invoice 3: Quantity Mismatch (Invoiced 240 bags vs Received 200 bags)
-  const inv3Content = `Dangote Cement Distribution Ltd\nInvoice #: INV-DANGOTE-402\nPO Reference: PO-2026-0089\nItem: Portland Cement (50kg Bag)\nQuantity: 240 bags\nUnit Price: 8.50 USDC\nTotal Due: 2,040.00 USDC\nRemittance: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8`;
+  const inv3Content = `Dangote Cement Distribution Ltd\nInvoice #: INV-DANGOTE-402\nPO Reference: PO-2026-0089\nItem: Portland Cement (50kg Bag)\nQuantity: 240 bags\nUnit Price: 8.50 USDC\nTotal Due: 2,040.00 USDC\nRemittance: ${vendorWallet}`;
   await prisma.invoice.create({
     data: {
       id: "inv-402",
@@ -205,7 +206,7 @@ async function main() {
         vendorName: "Dangote Cement Distribution (demo)",
         invoiceNumber: "INV-DANGOTE-402",
         poNumber: "PO-2026-0089",
-        remittanceWallet: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        remittanceWallet: vendorWallet,
         quantity: 240,
         unitPrice: 8.5,
         total: 2040.0,
