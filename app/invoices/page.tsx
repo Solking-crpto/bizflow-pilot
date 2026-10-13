@@ -62,7 +62,7 @@ export default async function InvoiceDeskPage() {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
       vendorId: inv.vendorId,
-      vendorName: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+      vendorName: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
       vendorWallet: inv.vendor?.walletAddress || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
       poNumber: po?.poNumber || "PO-2026-0089",
       poQty: poLine?.quantity || 200,

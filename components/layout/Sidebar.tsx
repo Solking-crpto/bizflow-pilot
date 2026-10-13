@@ -15,11 +15,13 @@ import {
   HelpCircle,
   ExternalLink,
   ShieldCheck,
+  Award,
 } from "lucide-react";
 import { Logo } from "../ui/Logo";
 
 const NAV_ITEMS = [
   { name: "Command Center", href: "/", icon: LayoutDashboard },
+  { name: "Judge Guide", href: "/judges", icon: Award },
   { name: "Inventory & POs", href: "/inventory", icon: Boxes },
   { name: "Invoice Desk", href: "/invoices", icon: ReceiptText },
   { name: "AI Finance Agent", href: "/agent", icon: Bot },

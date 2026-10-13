@@ -1,0 +1,10 @@
+{
+  "network": "Arc Mainnet",
+  "chainId": 5042,
+  "contract": "AuditAnchor",
+  "address": "0x2b18fe9d3a63710da242092571744520ea8effe0",
+  "deployer": "0x061F5c70D68A246b654724C0f9595F3a14cF9b0B",
+  "txHash": "0x600e31431faba6022dbc5d259961ddc4fbd89e7c2867b1e590ca76f8d74b83e4",
+  "blockNumber": 25822380,
+  "deployedAt": "2026-10-13T22:26:20.574Z"
+}

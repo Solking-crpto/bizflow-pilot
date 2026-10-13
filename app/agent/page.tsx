@@ -55,7 +55,7 @@ export default async function AgentPage() {
       const { recommendation } = await runAgentAnalysis({
         invoiceId: inv.id,
         invoiceNumber: inv.invoiceNumber,
-        vendorName: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+        vendorName: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
         amountFormatted: formatUsdc(usdcAtomic(inv.totalUsdc)),
         amountAtomic: inv.totalUsdc.toString(),
         matchStatus: inv.matchStatus,
@@ -76,7 +76,7 @@ export default async function AgentPage() {
       return {
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
-        vendorName: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+        vendorName: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
         amountFormatted: formatUsdc(usdcAtomic(inv.totalUsdc)),
         matchStatus: inv.matchStatus,
         duplicateScore: inv.duplicateScore,

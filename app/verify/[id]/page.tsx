@@ -104,7 +104,7 @@ export default async function VerifyPaymentPassportPage({
   // Fallback demo values (Testnet staging only)
   const isMainnet = network.mode === "mainnet";
   const invoiceNumber = payment?.invoice?.invoiceNumber || (isMainnet ? id : "INV-DANGOTE-401");
-  const vendorName = payment?.vendor?.name || (isMainnet ? "Mainnet Vendor" : "Dangote Cement Distribution (demo)");
+  const vendorName = payment?.vendor?.name || (isMainnet ? "Northgate Cement Supply (demo vendor)" : "Northgate Cement Supply (demo vendor)");
   const vendorWallet = payment?.vendor?.walletAddress || payment?.destination || "";
   const amountFormatted = payment
     ? formatUsdc(usdcAtomic(payment.amountAtomic))

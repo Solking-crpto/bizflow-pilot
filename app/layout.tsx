@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { NetworkBanner } from "@/components/layout/NetworkBadge";
+import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "BizFlow Pilot — Policy-Approved USDC Settlement on Arc",
@@ -28,6 +29,7 @@ export default function RootLayout({
             <main className="flex-1 p-6 md:p-8 max-w-[1280px] w-full mx-auto overflow-y-auto">
               {children}
             </main>
+            <Footer networkMode={networkMode} />
           </div>
         </div>
       </body>

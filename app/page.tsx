@@ -77,7 +77,7 @@ export default async function CommandCenterPage() {
         {/* Treasury Balance */}
         <div className="p-4 rounded-xl border border-border bg-surface shadow-card flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-muted">Available Treasury</span>
+            <span className="text-xs font-medium text-ink-muted">USDC Balance</span>
             <div className="p-1.5 rounded-md bg-brand-light text-brand-teal">
               <TrendingUp className="w-4 h-4" />
             </div>
@@ -86,17 +86,18 @@ export default async function CommandCenterPage() {
             <div className="text-2xl font-bold font-mono tracking-tight text-ink">
               {treasuryBalances.usdcFormatted} <span className="text-xs font-sans text-brand-teal font-semibold">USDC</span>
             </div>
-            <div className="text-[11px] text-ink-muted mt-1 flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${treasuryBalances.isLive ? "bg-emerald-500" : "bg-blue-500"}`} />
-                <span>{treasuryBalances.isLive ? "Arc RPC Live Balance" : "Settlement Reserve Healthy"}</span>
-              </div>
-              {treasuryBalances.isLive && (
-                <span className="font-mono text-[10px] text-ink-muted">
-                  Gas: {treasuryBalances.gasFormatted}
-                </span>
-              )}
+            <div className="text-[11px] text-ink-muted mt-1 leading-snug">
+              Arc uses USDC as the gas token, so this single balance covers gas and payments.
             </div>
+            {treasuryBalances.isLive && (
+              <div className="mt-2 text-[10px] text-emerald-600 font-medium flex items-center justify-between border-t border-border/60 pt-1.5">
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Arc RPC Live</span>
+                </div>
+                <span className="font-mono text-ink-muted">Gas: {treasuryBalances.gasFormatted}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -112,8 +113,14 @@ export default async function CommandCenterPage() {
             <div className="text-2xl font-bold font-mono tracking-tight text-ink">
               {data.metrics.upcomingBillsFormatted}
             </div>
-            <div className="text-[11px] text-ink-muted mt-1">
-              {data.metrics.totalInvoicesCount} invoices queued for settlement
+            <div className="text-[11px] text-ink-muted mt-1 leading-snug">
+              <div>
+                {data.metrics.awaitingSettlementCount}{" "}
+                {data.metrics.awaitingSettlementCount === 1 ? "invoice" : "invoices"} awaiting settlement
+              </div>
+              <div className="text-ink font-medium mt-0.5">
+                {data.metrics.settledFormatted} settled to date
+              </div>
             </div>
           </div>
         </div>
@@ -128,10 +135,16 @@ export default async function CommandCenterPage() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold font-mono tracking-tight text-ink">
-              {data.metrics.pendingApprovalsCount} <span className="text-xs font-sans font-normal text-ink-muted">items</span>
+              {data.metrics.actionRequiredCount}{" "}
+              <span className="text-xs font-sans font-normal text-ink-muted">
+                {data.metrics.actionRequiredCount === 1 ? "item" : "items"}
+              </span>
             </div>
-            <div className="text-[11px] text-warning font-medium mt-1">
-              Includes {data.metrics.blockedCount} policy-blocked anomalies
+            <div className="text-[11px] text-warning font-medium mt-1 leading-snug">
+              {data.metrics.blockedCount > 0 && `${data.metrics.blockedCount} policy-blocked`}
+              {data.metrics.blockedCount > 0 && data.metrics.reviewRequiredCount > 0 && " · "}
+              {data.metrics.reviewRequiredCount > 0 && `${data.metrics.reviewRequiredCount} review-required`}
+              {data.metrics.actionRequiredCount === 0 && "All clear — 0 anomalies"}
             </div>
           </div>
         </div>

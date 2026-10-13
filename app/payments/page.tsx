@@ -70,8 +70,8 @@ export default async function PaymentsPage() {
       hasOwnerConfirmation: true,
 
       vendor: {
-        id: inv.vendor?.id || "vendor-dangote-01",
-        name: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+        id: inv.vendor?.id || "vendor-northgate-01",
+        name: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
         status: inv.vendor?.status || "active",
         recordedWallet: inv.vendor?.walletAddress || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
         perVendorLimitUsdc: usdcAtomic(inv.vendor?.perVendorLimitUsdc || 15000000000n),
@@ -96,7 +96,7 @@ export default async function PaymentsPage() {
     return {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
-      vendorName: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+      vendorName: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
       vendorWallet: inv.vendor?.walletAddress || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
       amountFormatted: formatUsdc(usdcAtomic(inv.totalUsdc)),
       amountAtomic: inv.totalUsdc.toString(),

@@ -35,19 +35,39 @@ export async function getCommandCenterData() {
       };
 
       let upcomingBillsAtomic = 0n;
-      let pendingApprovalsCount = 0;
+      let awaitingSettlementCount = 0;
+      let settledAtomic = 0n;
+      let settledCount = 0;
+      let reviewRequiredCount = 0;
       let blockedCount = 0;
 
+      for (const p of org.payments) {
+        if (p.status === "confirmed") {
+          settledAtomic += p.amountAtomic;
+          settledCount++;
+        }
+      }
+
       for (const inv of org.invoices) {
-        if (inv.status === "verified" || inv.status === "pending_verification") {
+        const hasConfirmedPayment = org.payments.some(
+          (p) => p.invoiceId === inv.id && p.status === "confirmed"
+        );
+        if (inv.status === "paid" || inv.status === "settled" || hasConfirmedPayment) {
+          if (!hasConfirmedPayment) {
+            settledAtomic += inv.totalUsdc;
+            settledCount++;
+          }
+        } else if (inv.status === "verified" || inv.status === "pending_verification") {
           upcomingBillsAtomic += inv.totalUsdc;
-          pendingApprovalsCount++;
+          awaitingSettlementCount++;
         } else if (inv.status === "review_required") {
-          pendingApprovalsCount++;
+          reviewRequiredCount++;
         } else if (inv.status === "blocked") {
           blockedCount++;
         }
       }
+
+      const actionRequiredCount = reviewRequiredCount + blockedCount;
 
       return {
         org: {
@@ -65,8 +85,14 @@ export async function getCommandCenterData() {
         metrics: {
           upcomingBillsFormatted: formatUsdc(usdcAtomic(upcomingBillsAtomic)),
           upcomingBillsAtomic: upcomingBillsAtomic.toString(),
-          pendingApprovalsCount,
+          settledFormatted: formatUsdc(usdcAtomic(settledAtomic)),
+          settledAtomic: settledAtomic.toString(),
+          awaitingSettlementCount,
+          settledCount,
+          actionRequiredCount,
+          reviewRequiredCount,
           blockedCount,
+          pendingApprovalsCount: actionRequiredCount,
           totalInvoicesCount: org.invoices.length,
           vendorCount: org.vendors.length,
         },
@@ -121,8 +147,14 @@ export async function getCommandCenterData() {
     metrics: {
       upcomingBillsFormatted: formatUsdc(usdcAtomic(upcomingBills)),
       upcomingBillsAtomic: upcomingBills.toString(),
-      pendingApprovalsCount: 2,
+      settledFormatted: formatUsdc(usdcAtomic(500000n)),
+      settledAtomic: "500000",
+      awaitingSettlementCount: 1,
+      settledCount: 1,
+      actionRequiredCount: 3,
+      reviewRequiredCount: 1,
       blockedCount: 2,
+      pendingApprovalsCount: 3,
       totalInvoicesCount: DEMO_INVOICES.length,
       vendorCount: DEMO_VENDORS.length,
     },

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Building2, Search, Bell, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { Building2, Search, Bell, UserCheck, ShieldCheck, Award } from "lucide-react";
 import { NetworkBadge } from "./NetworkBadge";
 
 interface TopNavProps {
@@ -18,19 +19,28 @@ export function TopNav({
   userRole = "owner",
 }: TopNavProps) {
   return (
-    <header className="h-14 border-b border-border bg-surface px-6 flex items-center justify-between sticky top-0 z-20">
-      {/* Org Selector */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-canvas hover:bg-canvas-subtle transition-colors cursor-pointer">
+    <header className="h-14 border-b border-border bg-surface px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+      {/* Org Selector & Judge Guide */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-canvas hover:bg-canvas-subtle transition-colors">
           <Building2 className="w-4 h-4 text-navy" />
           <span className="text-xs font-semibold text-ink tracking-tight">{orgName}</span>
-          <span className="text-[10px] uppercase font-mono px-1 py-0.2 bg-brand-light text-brand-teal rounded font-bold">
-            Verified
+          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded font-bold border border-amber-200">
+            DEMO ORG
           </span>
         </div>
 
         {/* Global Network Badge */}
         <NetworkBadge mode={networkMode} />
+
+        {/* Judge Guide Link */}
+        <Link
+          href="/judges"
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-navy text-white text-xs font-semibold hover:bg-navy-light transition-colors shadow-2xs"
+        >
+          <Award className="w-3.5 h-3.5 text-brand-teal" />
+          <span>Judge Guide</span>
+        </Link>
       </div>
 
       {/* Global Actions */}

@@ -46,7 +46,7 @@ export default async function PolicySimulatorPage() {
   const options = invoices.map((inv) => ({
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
-    vendorName: inv.vendor?.name || "Dangote Cement Distribution (demo)",
+    vendorName: inv.vendor?.name || "Northgate Cement Supply (demo vendor)",
     amountAtomic: inv.totalUsdc.toString(),
     wallet: inv.vendor?.walletAddress || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     matchStatus: inv.matchStatus,
