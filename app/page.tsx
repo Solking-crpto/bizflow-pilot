@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getCommandCenterData } from "@/lib/data";
 import { getActiveNetwork } from "@/lib/networks";
+import { getTreasuryPublicAddress, getSanitizedPaymentProvider } from "@/lib/treasury";
 import { StatusChip, HashView } from "@/components/ui/StatusChip";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export const dynamic = "force-dynamic";
 export default async function CommandCenterPage() {
   const data = await getCommandCenterData();
   const network = getActiveNetwork();
+  const treasuryAddress = getTreasuryPublicAddress();
+  const paymentProvider = getSanitizedPaymentProvider();
 
   if (!data) {
     return (
@@ -225,7 +228,13 @@ export default async function CommandCenterPage() {
               <div className="flex items-center justify-between">
                 <span className="text-ink-muted">Settlement Provider</span>
                 <span className="font-mono text-brand-teal font-semibold uppercase">
-                  {process.env.PAYMENT_PROVIDER || "direct"}
+                  {paymentProvider}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-ink-muted">Treasury Account</span>
+                <span className="font-mono text-[11px] text-ink font-semibold" title={treasuryAddress}>
+                  {treasuryAddress.slice(0, 6)}...{treasuryAddress.slice(-4)}
                 </span>
               </div>
             </div>
