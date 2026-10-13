@@ -99,10 +99,15 @@ export async function getCommandCenterData() {
       };
     }
   } catch (err) {
-    // Graceful fallback to seeded corporate demo scenario
+    // Graceful fallback to seeded corporate demo scenario on testnet
   }
 
-  // Fallback demo state
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
+  if (isMainnet) {
+    return null; // Strictly no demo data fallback on mainnet!
+  }
+
+  // Fallback demo state (testnet only)
   const upcomingBills = 1700000000n;
   return {
     org: DEMO_ORG,

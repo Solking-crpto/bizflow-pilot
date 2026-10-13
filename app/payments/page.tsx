@@ -5,42 +5,63 @@ import { evaluatePolicy, PolicyContext } from "@/lib/policy/engine";
 import { getActiveNetwork } from "@/lib/networks";
 import { PaymentDeskClient, PayableInvoiceItem } from "@/components/payments/PaymentDeskClient";
 import { DEMO_INVOICES, DEMO_SETTINGS } from "@/lib/demoData";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
+import { getTreasuryBalances } from "@/lib/balances";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage() {
   const networkConfig = getActiveNetwork();
+  const isMainnet = networkConfig.mode === "mainnet";
+  const isDryRun = process.env.DRY_RUN === "true" || process.env.NEXT_PUBLIC_DRY_RUN === "true";
+  const treasuryBalances = await getTreasuryBalances();
+
   let invoices: any[] = [];
+  let dbError: string | null = null;
 
   try {
     invoices = await withDbTimeout(
       () =>
         prisma.invoice.findMany({
+          where: isMainnet ? { network: "mainnet" } : undefined,
           include: {
             vendor: true,
             payments: { orderBy: { initiatedAt: "desc" }, take: 1 },
             organization: { include: { settings: true } },
           },
           orderBy: { createdAt: "desc" },
-        }),
-      2500,
-      []
+        })
     );
-  } catch (err) {
-    invoices = [];
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load payment queue from database.";
+    } else {
+      invoices = [];
+    }
   }
 
-  if (invoices.length === 0) invoices = DEMO_INVOICES;
+  if (isMainnet && dbError) {
+    return (
+      <DatabaseErrorState
+        title="Payment Desk Database Error"
+        message="Could not load live mainnet payment records from the database. Please ensure your database is accessible and retry."
+      />
+    );
+  }
+
+  if (!isMainnet && invoices.length === 0) {
+    invoices = DEMO_INVOICES;
+  }
 
   const payableItems: PayableInvoiceItem[] = invoices.map((inv) => {
     const settings = inv.organization?.settings?.[0] || DEMO_SETTINGS;
     const latestPayment = inv.payments?.[0];
 
-    // Evaluate policy on the fly
+    // Evaluate policy using live on-chain treasury balance on mainnet
     const policyContext: PolicyContext = {
       network: networkConfig.mode,
       killSwitchActive: settings.killSwitchActive,
-      availableTreasuryUsdc: usdcAtomic(100000000000n),
+      availableTreasuryUsdc: usdcAtomic(treasuryBalances.usdcAtomicValue),
       minReserveUsdc: usdcAtomic(settings.minReserveUsdc),
       dailySpentUsdc: usdcAtomic(0n),
       dailyLimitUsdc: usdcAtomic(settings.dailyLimitUsdc),
@@ -103,6 +124,7 @@ export default async function PaymentsPage() {
       networkMode={networkConfig.mode}
       explorerUrl={networkConfig.explorerUrl}
       maxMainnetPayment={networkConfig.maxPaymentUsdc}
+      isDryRun={isDryRun}
     />
   );
 }

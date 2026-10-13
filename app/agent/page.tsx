@@ -4,30 +4,51 @@ import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { runAgentAnalysis } from "@/lib/agent/recommender";
 import { AgentDashboardClient } from "@/components/agent/AgentDashboardClient";
 import { DEMO_INVOICES } from "@/lib/demoData";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
+import { getTreasuryBalances } from "@/lib/balances";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentPage() {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
+  const balances = await getTreasuryBalances();
+
   let invoices: any[] = [];
+  let dbError: string | null = null;
+
   try {
     invoices = await withDbTimeout(
       () =>
         prisma.invoice.findMany({
+          where: isMainnet ? { network: "mainnet" } : undefined,
           include: { vendor: true, purchaseOrder: true },
           orderBy: { createdAt: "desc" },
-        }),
-      2500,
-      []
+        })
     );
-  } catch (err) {
-    invoices = [];
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load invoices from database.";
+    } else {
+      invoices = [];
+    }
   }
 
-  if (invoices.length === 0) invoices = DEMO_INVOICES;
+  if (isMainnet && dbError) {
+    return (
+      <DatabaseErrorState
+        title="AI Agent Advisory Database Error"
+        message="Could not load live mainnet invoices from the database. Please verify connectivity and retry."
+      />
+    );
+  }
 
-  const treasuryBalance = 100000000000n; // 100,000 USDC
-  const minReserve = 2000000000n; // 2,000 USDC
-  const freeCash = treasuryBalance - minReserve; // 98,000 USDC
+  if (!isMainnet && invoices.length === 0) {
+    invoices = DEMO_INVOICES;
+  }
+
+  const treasuryBalance = isMainnet ? balances.usdcAtomicValue : 100000000000n; // Live on mainnet
+  const minReserve = isMainnet ? 250000n : 2000000000n; // 0.25 USDC on mainnet demo scale
+  const freeCash = treasuryBalance > minReserve ? treasuryBalance - minReserve : 0n;
 
   const analyzedInvoices = await Promise.all(
     invoices.map(async (inv) => {

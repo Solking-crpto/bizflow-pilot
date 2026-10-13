@@ -18,14 +18,27 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 /**
+ * Retrieves the configured database query timeout in milliseconds.
+ * Defaults to 15,000ms (configurable via DB_TIMEOUT_MS).
+ */
+export function getDbTimeoutMs(): number {
+  const envVal = process.env.DB_TIMEOUT_MS;
+  if (!envVal) return 15000;
+  const parsed = parseInt(envVal, 10);
+  return isNaN(parsed) || parsed <= 0 ? 15000 : parsed;
+}
+
+/**
  * Executes a database query with a timeout. If the database connection is hung or takes
- * longer than timeoutMs, falls back gracefully or rejects with a clean error.
+ * longer than timeoutMs, falls back gracefully (on non-mainnet only) or rejects with a clean error.
+ * On mainnet, fallbackVal is strictly ignored to prevent displaying mock data.
  */
 export async function withDbTimeout<T>(
   queryFn: () => Promise<T>,
-  timeoutMs = 2500,
+  timeoutMs = getDbTimeoutMs(),
   fallbackVal?: T
 ): Promise<T> {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -39,7 +52,8 @@ export async function withDbTimeout<T>(
     return result;
   } catch (err) {
     if (timer) clearTimeout(timer);
-    if (fallbackVal !== undefined) {
+    // On mainnet mode, NEVER use fallbackVal!
+    if (fallbackVal !== undefined && !isMainnet) {
       return fallbackVal;
     }
     throw err;

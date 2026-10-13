@@ -1,22 +1,45 @@
 import React from "react";
-import { prisma } from "@/lib/db";
+import { prisma, withDbTimeout } from "@/lib/db";
 import { PolicySimulatorClient } from "@/components/simulator/PolicySimulatorClient";
 import { DEMO_INVOICES } from "@/lib/demoData";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
 export default async function PolicySimulatorPage() {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
   let invoices: any[] = [];
+  let dbError: string | null = null;
+
   try {
-    invoices = await prisma.invoice.findMany({
-      include: { vendor: true },
-      orderBy: { createdAt: "desc" },
-    });
-  } catch (err) {
-    invoices = [];
+    invoices = await withDbTimeout(
+      () =>
+        prisma.invoice.findMany({
+          where: isMainnet ? { network: "mainnet" } : undefined,
+          include: { vendor: true },
+          orderBy: { createdAt: "desc" },
+        })
+    );
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load invoices from database.";
+    } else {
+      invoices = [];
+    }
   }
 
-  if (invoices.length === 0) invoices = DEMO_INVOICES;
+  if (isMainnet && dbError) {
+    return (
+      <DatabaseErrorState
+        title="Policy Simulator Database Error"
+        message="Could not load live mainnet invoices for simulation. Please verify connectivity and retry."
+      />
+    );
+  }
+
+  if (!isMainnet && invoices.length === 0) {
+    invoices = DEMO_INVOICES;
+  }
 
   const defaultNetwork = (process.env.NEXT_PUBLIC_NETWORK_MODE || "testnet") as "testnet" | "mainnet";
 

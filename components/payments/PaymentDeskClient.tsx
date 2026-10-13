@@ -45,15 +45,19 @@ export function PaymentDeskClient({
   networkMode,
   explorerUrl,
   maxMainnetPayment,
+  isDryRun = false,
 }: {
   items: PayableInvoiceItem[];
   networkMode: "testnet" | "mainnet";
   explorerUrl: string;
   maxMainnetPayment: string;
+  isDryRun?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string>(items[0]?.id || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMainnetModalOpen, setIsMainnetModalOpen] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -69,6 +73,7 @@ export function PaymentDeskClient({
 
     setIsSubmitting(true);
     setErrorMsg(null);
+    setPasscodeError(null);
     setExecutionResult(null);
 
     try {
@@ -78,15 +83,21 @@ export function PaymentDeskClient({
         body: JSON.stringify({
           invoiceId: selected.id,
           hasOwnerConfirmation: true,
+          passcode: passcode.trim() || undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || data.summary || "Payment failed");
+        if (res.status === 401) {
+          setPasscodeError(data.error || "Invalid owner passcode");
+        } else {
+          setErrorMsg(data.error || data.summary || "Payment failed");
+        }
       } else {
         setExecutionResult(data.payment);
         setIsMainnetModalOpen(false);
+        setPasscode("");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to execute payment");
@@ -110,6 +121,14 @@ export function PaymentDeskClient({
             Executes policy-approved USDC settlements on Arc with on-chain audit anchoring.
           </p>
         </div>
+        {isDryRun && (
+          <div className="flex items-center">
+            <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              <span>DRY RUN: no transactions are sent</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Split: Queue on Left, Payment Drawer on Right */}
@@ -358,6 +377,34 @@ export function PaymentDeskClient({
                 <span className="text-ink-muted">Destination:</span>
                 <span className="font-mono text-ink text-[11px]">{truncateHash(selected.vendorWallet)}</span>
               </div>
+            </div>
+
+            {isDryRun && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+                <span>Simulation Active: Parameters will be validated via Arc RPC, but zero funds will be broadcast.</span>
+              </div>
+            )}
+
+            {/* Owner Passcode Input (Required on Arc Mainnet) */}
+            <div className="space-y-1.5 text-left pt-1">
+              <label className="text-xs font-semibold text-ink flex items-center justify-between">
+                <span>Owner Passcode</span>
+                <span className="text-[11px] font-mono text-danger font-medium">Required for Mainnet</span>
+              </label>
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => {
+                  setPasscode(e.target.value);
+                  setPasscodeError(null);
+                }}
+                placeholder="Enter OWNER_PASSCODE"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-canvas font-mono text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand-teal"
+              />
+              {passcodeError && (
+                <p className="text-xs text-danger font-semibold mt-1">{passcodeError}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">

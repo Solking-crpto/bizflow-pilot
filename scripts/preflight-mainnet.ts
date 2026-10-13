@@ -148,12 +148,13 @@ async function runPreflight(): Promise<void> {
   let dbOrgPassed = false;
   let dbDetails = "";
   try {
+    const dbTimeoutMs = parseInt(process.env.DB_TIMEOUT_MS || "15000", 10);
     const org = await withDbTimeout(
       () =>
         prisma.organization.findFirst({
           include: { invoices: { where: { network: "mainnet" } }, settings: true },
         }),
-      3000
+      dbTimeoutMs
     );
 
     if (org && org.invoices.length > 0) {

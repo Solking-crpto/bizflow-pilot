@@ -54,21 +54,32 @@ export function SettingsClient({
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [killSwitchPending, setKillSwitchPending] = useState(false);
+  const [passcode, setPasscode] = useState("");
 
   const handleToggleKillSwitch = async () => {
     setKillSwitchPending(true);
+    setErrorMessage(null);
     const nextState = !killSwitchActive;
-    setKillSwitchActive(nextState);
 
     try {
-      await fetch("/api/settings", {
+      const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ killSwitchActive: nextState }),
+        body: JSON.stringify({ killSwitchActive: nextState, passcode: passcode.trim() || undefined }),
       });
-    } catch {
-      // Offline fallback state already toggled locally
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Failed to update emergency kill switch.");
+      } else {
+        setKillSwitchActive(nextState);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to contact settings API.");
     } finally {
       setKillSwitchPending(false);
     }
@@ -78,9 +89,10 @@ export function SettingsClient({
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
+    setErrorMessage(null);
 
     try {
-      await fetch("/api/settings", {
+      const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,13 +101,19 @@ export function SettingsClient({
           minReserveUsdc: (BigInt(Math.round(Number(minReserveUsdc) * 1_000_000))).toString(),
           dailyLimitUsdc: (BigInt(Math.round(Number(dailyLimitUsdc) * 1_000_000))).toString(),
           killSwitchActive,
+          passcode: passcode.trim() || undefined,
         }),
       });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch {
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Failed to save settings.");
+      } else {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to save settings.");
     } finally {
       setSaving(false);
     }
@@ -129,6 +147,13 @@ export function SettingsClient({
         <div className="p-3.5 rounded-xl bg-success-light border border-success-border text-xs text-success font-semibold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />
           <span>Policy settings updated and verified. Live guardrails are active.</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-3.5 rounded-xl bg-danger-light border border-danger-border text-xs text-danger font-semibold flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -285,6 +310,25 @@ export function SettingsClient({
                   <span className="font-mono text-ink-muted">USDC</span>
                 </div>
                 <p className="text-[11px] text-ink-muted">Maximum cumulative settlements permitted per 24h rolling period.</p>
+              </div>
+
+              {/* Owner Passcode field for Mainnet */}
+              <div className="p-3 rounded-lg bg-canvas border border-border space-y-1 sm:col-span-2">
+                <label className="text-ink-muted block font-medium flex items-center justify-between">
+                  <span>Owner Passcode</span>
+                  <span className="text-[11px] font-mono text-danger font-medium">Required on Arc Mainnet</span>
+                </label>
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => {
+                    setPasscode(e.target.value);
+                    setErrorMessage(null);
+                  }}
+                  placeholder="Enter OWNER_PASSCODE"
+                  className="w-full max-w-sm px-3 py-1.5 rounded border border-border bg-surface font-mono text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand-teal"
+                />
+                <p className="text-[11px] text-ink-muted">Required on Arc Mainnet to authorize policy changes or toggle the emergency kill switch.</p>
               </div>
             </div>
           </form>

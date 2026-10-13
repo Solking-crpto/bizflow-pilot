@@ -23,7 +23,11 @@ if (Test-Path .env) {
 # 1. database (clipboard) + password (typed)
 Write-Host "`n1/4 In Supabase (bizflow-mainnet): Connect > Session pooler > COPY the string." -ForegroundColor Yellow
 $raw = Read-Clip 'Copied it? Press Enter'
-$raw = $raw -replace '^\s*[A-Za-z_]+\s*=\s*',''
+$urls = @([regex]::Matches($raw, 'postgres(?:ql)?://[^\s"'']+') | ForEach-Object { $_.Value })
+if ($urls.Count -eq 0) { Fail ("No postgresql:// URL found. Clipboard length: " + $raw.Length + ", starts with: [" + $raw.Substring(0,[Math]::Min(6,$raw.Length)) + "]") }
+$pick = $urls | Where-Object { $_ -match ':5432/' } | Select-Object -First 1
+if (-not $pick) { $pick = $urls[0] }
+$raw = $pick
 $raw = $raw.Trim('"')
 if ($raw -notmatch '^postgres(ql)?://') { Fail 'The clipboard does not hold a postgresql:// string. Copy the Session pooler string from Supabase and try again.' }
 if ($raw -notmatch '^postgres(?:ql)?://([^:]+):(.*)@([^@]+)$') { Fail 'Could not read that connection string.' }
@@ -111,4 +115,5 @@ Write-Host "`n[3/4] seed demo-scale data" -ForegroundColor Cyan
 npm run seed:mainnet
 Write-Host "`n[4/4] preflight check (read-only)" -ForegroundColor Cyan
 npm run preflight:mainnet
+
 

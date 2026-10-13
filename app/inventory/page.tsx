@@ -4,12 +4,15 @@ import { Boxes, PackageCheck, FileText, ArrowRight, CheckCircle2, TrendingDown }
 import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { DEMO_ITEMS, DEMO_PURCHASE_ORDERS } from "@/lib/demoData";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
   let items: any[] = [];
   let purchaseOrders: any[] = [];
+  let dbError: string | null = null;
 
   try {
     const results = await withDbTimeout(
@@ -28,20 +31,33 @@ export default async function InventoryPage() {
             },
             orderBy: { createdAt: "desc" },
           }),
-        ]),
-      2500,
-      [[], []]
+        ])
     );
 
     items = results[0];
     purchaseOrders = results[1];
-  } catch (err) {
-    items = [];
-    purchaseOrders = [];
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load inventory data from database.";
+    } else {
+      items = [];
+      purchaseOrders = [];
+    }
   }
 
-  if (items.length === 0) items = DEMO_ITEMS;
-  if (purchaseOrders.length === 0) purchaseOrders = DEMO_PURCHASE_ORDERS;
+  if (isMainnet && dbError) {
+    return (
+      <DatabaseErrorState
+        title="Inventory Database Error"
+        message="Could not load inventory and purchase order records from the database. Please verify connectivity and retry."
+      />
+    );
+  }
+
+  if (!isMainnet) {
+    if (items.length === 0) items = DEMO_ITEMS;
+    if (purchaseOrders.length === 0) purchaseOrders = DEMO_PURCHASE_ORDERS;
+  }
 
   return (
     <div className="space-y-6">

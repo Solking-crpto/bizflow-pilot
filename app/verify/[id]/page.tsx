@@ -19,6 +19,7 @@ import { getActiveNetwork } from "@/lib/networks";
 import { HashView } from "@/components/ui/StatusChip";
 import { truncateHash } from "@/lib/utils";
 import { verifyAuditChain } from "@/lib/audit/ledger";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
@@ -87,29 +88,39 @@ export default async function VerifyPaymentPassportPage({
       chainVerification = await verifyAuditChain(org.id);
     }
   } catch (err) {
-    // Offline / fallback demo mode
+    // Offline / fallback demo mode on testnet
   }
 
-  // Fallback demo values if running on a fresh seed before execution
-  const invoiceNumber = payment?.invoice.invoiceNumber || "INV-DANGOTE-401";
-  const vendorName = payment?.vendor.name || "Dangote Cement Distribution (demo)";
-  const vendorWallet = payment?.vendor.walletAddress || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+  // On Arc Mainnet: strictly no mock/hardcoded payment fallback!
+  if (network.mode === "mainnet" && !payment && !searchParams?.txHash) {
+    return (
+      <DatabaseErrorState
+        title="Payment Passport Not Found"
+        message="No settled payment or audit anchor record was found for this identifier on Arc Mainnet. Run a settlement first to generate a verifiable passport."
+      />
+    );
+  }
+
+  // Fallback demo values (Testnet staging only)
+  const isMainnet = network.mode === "mainnet";
+  const invoiceNumber = payment?.invoice?.invoiceNumber || (isMainnet ? id : "INV-DANGOTE-401");
+  const vendorName = payment?.vendor?.name || (isMainnet ? "Mainnet Vendor" : "Dangote Cement Distribution (demo)");
+  const vendorWallet = payment?.vendor?.walletAddress || payment?.destination || "";
   const amountFormatted = payment
     ? formatUsdc(usdcAtomic(payment.amountAtomic))
-    : "1,700.00 USDC";
-  const invoiceHash = payment?.invoice.fileHash || "4a8e3d640989f66085a213e4b77c3dcbeaa0c3be6ad377bcfda885374be21715";
+    : (isMainnet ? "0.00 USDC" : "1,700.00 USDC");
+  const invoiceHash = payment?.invoice?.fileHash || "";
   const decisionHash =
-    payment?.invoice.policyEvaluations[0]?.decisionHash ||
-    "c8a514d7a46e16b9b4f9797825d7ef1be264e1efebf85d1e70498b9a12e564b1";
+    payment?.invoice?.policyEvaluations?.[0]?.decisionHash || "";
   const txHash =
     searchParams?.txHash ||
     payment?.txHash ||
-    "0x9f5a7d65b758269d6c42939b4cb0e7e17eaec596b42b6559d2824dfb5dbd0e82";
+    (isMainnet ? "" : "0x9f5a7d65b758269d6c42939b4cb0e7e17eaec596b42b6559d2824dfb5dbd0e82");
   const anchorTxHash =
     searchParams?.anchorAddress ||
     payment?.anchor?.anchorTxHash ||
     payment?.anchorTxHash ||
-    "0x3f5c71a91e5c3e6601cb89b659c235790a88062de3f86e9036c6a51b5e13d8a9";
+    (isMainnet ? "" : "0x3f5c71a91e5c3e6601cb89b659c235790a88062de3f86e9036c6a51b5e13d8a9");
 
   // Direct Arc RPC Verification Check
   let isRpcConfirmed = false;

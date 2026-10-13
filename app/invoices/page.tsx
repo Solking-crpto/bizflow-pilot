@@ -3,15 +3,20 @@ import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { InvoiceDeskClient, SerializedInvoice } from "@/components/invoices/InvoiceDeskClient";
 import { DEMO_INVOICES } from "@/lib/demoData";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDeskPage() {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
   let invoices: any[] = [];
+  let dbError: string | null = null;
+
   try {
     invoices = await withDbTimeout(
       () =>
         prisma.invoice.findMany({
+          where: isMainnet ? { network: "mainnet" } : undefined,
           include: {
             vendor: true,
             purchaseOrder: {
@@ -24,15 +29,26 @@ export default async function InvoiceDeskPage() {
             },
           },
           orderBy: { createdAt: "desc" },
-        }),
-      2500,
-      []
+        })
     );
-  } catch (err) {
-    invoices = [];
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load invoices from database.";
+    } else {
+      invoices = [];
+    }
   }
 
-  if (invoices.length === 0) {
+  if (isMainnet && dbError) {
+    return (
+      <DatabaseErrorState
+        title="Invoice Desk Database Error"
+        message="Could not load live mainnet invoices from the database. Please verify database connectivity and retry."
+      />
+    );
+  }
+
+  if (!isMainnet && invoices.length === 0) {
     invoices = DEMO_INVOICES;
   }
 

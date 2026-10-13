@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withDbTimeout } from "@/lib/db";
+import { verifyOwnerPasscode } from "@/lib/security/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Enforce owner passcode on Mainnet
+    const authCheck = verifyOwnerPasscode(body.passcode);
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+    }
 
     const org = await withDbTimeout(() => prisma.organization.findFirst({ include: { settings: true } }), 2000);
 

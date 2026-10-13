@@ -15,7 +15,9 @@ import {
 import { getCommandCenterData } from "@/lib/data";
 import { getActiveNetwork } from "@/lib/networks";
 import { getTreasuryPublicAddress, getSanitizedPaymentProvider } from "@/lib/treasury";
+import { getTreasuryBalances } from "@/lib/balances";
 import { StatusChip, HashView } from "@/components/ui/StatusChip";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,17 @@ export default async function CommandCenterPage() {
   const network = getActiveNetwork();
   const treasuryAddress = getTreasuryPublicAddress();
   const paymentProvider = getSanitizedPaymentProvider();
+  const treasuryBalances = await getTreasuryBalances();
 
   if (!data) {
+    if (network.mode === "mainnet") {
+      return (
+        <DatabaseErrorState
+          title="Command Center Database Error"
+          message="Could not load live mainnet organization and invoice records from the database. Please ensure your database is reachable and seeded."
+        />
+      );
+    }
     return (
       <div className="p-8 text-center text-ink-muted">
         <p>No organization found. Please run the database seed script.</p>
@@ -73,11 +84,18 @@ export default async function CommandCenterPage() {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold font-mono tracking-tight text-ink">
-              100,000.00 <span className="text-xs font-sans text-brand-teal font-semibold">USDC</span>
+              {treasuryBalances.usdcFormatted} <span className="text-xs font-sans text-brand-teal font-semibold">USDC</span>
             </div>
-            <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Settlement Reserve Healthy</span>
+            <div className="text-[11px] text-ink-muted mt-1 flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${treasuryBalances.isLive ? "bg-emerald-500" : "bg-blue-500"}`} />
+                <span>{treasuryBalances.isLive ? "Arc RPC Live Balance" : "Settlement Reserve Healthy"}</span>
+              </div>
+              {treasuryBalances.isLive && (
+                <span className="font-mono text-[10px] text-ink-muted">
+                  Gas: {treasuryBalances.gasFormatted}
+                </span>
+              )}
             </div>
           </div>
         </div>

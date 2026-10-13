@@ -3,11 +3,15 @@ import { prisma, withDbTimeout } from "@/lib/db";
 import { getTreasuryPublicAddress } from "@/lib/treasury";
 import { DEMO_SETTINGS, DEMO_VENDORS } from "@/lib/demoData";
 import { SettingsClient, SerializedSettings, SerializedVendor } from "@/components/settings/SettingsClient";
+import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
   let org: any = null;
+  let dbError: string | null = null;
+
   try {
     org = await withDbTimeout(
       () =>
@@ -16,11 +20,23 @@ export default async function SettingsPage() {
             settings: true,
             vendors: true,
           },
-        }),
-      2500
+        })
     );
-  } catch (err) {
-    org = null;
+  } catch (err: any) {
+    if (isMainnet) {
+      dbError = err.message || "Failed to load settings from database.";
+    } else {
+      org = null;
+    }
+  }
+
+  if (isMainnet && (!org || dbError)) {
+    return (
+      <DatabaseErrorState
+        title="Settings Database Error"
+        message={dbError || "No organization configuration found on Arc Mainnet. Please ensure database is seeded."}
+      />
+    );
   }
 
   const rawSettings = org?.settings?.[0] || DEMO_SETTINGS;

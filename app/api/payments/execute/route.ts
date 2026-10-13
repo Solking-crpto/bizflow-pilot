@@ -11,9 +11,12 @@ import { getActiveNetwork } from "@/lib/networks";
 import { usdcAtomic, parseUsdc } from "@/lib/money";
 import { sha256 } from "@/lib/crypto";
 
+import { verifyOwnerPasscode } from "@/lib/security/auth";
+
 const ExecutePaymentSchema = z.object({
   invoiceId: z.string(),
   hasOwnerConfirmation: z.boolean().optional(),
+  passcode: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -24,7 +27,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request payload", details: parsed.error }, { status: 400 });
     }
 
-    const { invoiceId, hasOwnerConfirmation } = parsed.data;
+    const { invoiceId, hasOwnerConfirmation, passcode } = parsed.data;
+
+    // Enforce owner passcode on Mainnet
+    const authCheck = verifyOwnerPasscode(passcode);
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+    }
 
     // 1. Fetch Invoice with Vendor, Org, Settings
     const invoice = await prisma.invoice.findUnique({
