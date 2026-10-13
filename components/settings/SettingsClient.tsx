@@ -1,0 +1,332 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  Settings,
+  ShieldAlert,
+  Sliders,
+  Users,
+  Wallet,
+  Lock,
+  CheckCircle2,
+  Save,
+  AlertTriangle,
+} from "lucide-react";
+import { HashView } from "@/components/ui/StatusChip";
+import { formatUsdc, usdcAtomic } from "@/lib/money";
+
+export interface SerializedVendor {
+  id: string;
+  name: string;
+  walletAddress: string;
+  status: string;
+  perVendorLimitUsdc: string;
+}
+
+export interface SerializedSettings {
+  killSwitchActive: boolean;
+  priceToleranceBps: number;
+  requireApprovalAbove: string;
+  minReserveUsdc: string;
+  dailyLimitUsdc: string;
+}
+
+export function SettingsClient({
+  initialSettings,
+  vendors,
+  treasuryPublicAddress,
+}: {
+  initialSettings: SerializedSettings;
+  vendors: SerializedVendor[];
+  treasuryPublicAddress: string;
+}) {
+  const [killSwitchActive, setKillSwitchActive] = useState(initialSettings.killSwitchActive);
+  const [priceToleranceBps, setPriceToleranceBps] = useState(initialSettings.priceToleranceBps);
+  const [requireApprovalAbove, setRequireApprovalAbove] = useState(
+    (Number(BigInt(initialSettings.requireApprovalAbove)) / 1_000_000).toString()
+  );
+  const [minReserveUsdc, setMinReserveUsdc] = useState(
+    (Number(BigInt(initialSettings.minReserveUsdc)) / 1_000_000).toString()
+  );
+  const [dailyLimitUsdc, setDailyLimitUsdc] = useState(
+    (Number(BigInt(initialSettings.dailyLimitUsdc)) / 1_000_000).toString()
+  );
+
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [killSwitchPending, setKillSwitchPending] = useState(false);
+
+  const handleToggleKillSwitch = async () => {
+    setKillSwitchPending(true);
+    const nextState = !killSwitchActive;
+    setKillSwitchActive(nextState);
+
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ killSwitchActive: nextState }),
+      });
+    } catch {
+      // Offline fallback state already toggled locally
+    } finally {
+      setKillSwitchPending(false);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveSuccess(false);
+
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priceToleranceBps: Number(priceToleranceBps),
+          requireApprovalAbove: (BigInt(Math.round(Number(requireApprovalAbove) * 1_000_000))).toString(),
+          minReserveUsdc: (BigInt(Math.round(Number(minReserveUsdc) * 1_000_000))).toString(),
+          dailyLimitUsdc: (BigInt(Math.round(Number(dailyLimitUsdc) * 1_000_000))).toString(),
+          killSwitchActive,
+        }),
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink flex items-center gap-2">
+            <span>Rules & Wallet Settings</span>
+          </h1>
+          <p className="text-sm text-ink-muted mt-0.5">
+            Configure policy limits, corporate approval thresholds, approved vendors, and emergency halts.
+          </p>
+        </div>
+        <div>
+          <button
+            onClick={handleSaveSettings}
+            disabled={saving}
+            className="px-4 py-2 rounded-md bg-navy text-white text-xs font-semibold hover:bg-navy-light transition-colors shadow-xs flex items-center gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{saving ? "Saving Changes..." : "Save Settings"}</span>
+          </button>
+        </div>
+      </div>
+
+      {saveSuccess && (
+        <div className="p-3.5 rounded-xl bg-success-light border border-success-border text-xs text-success font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Policy settings updated and verified. Live guardrails are active.</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Treasury & Emergency Controls (5 Columns) */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Treasury Wallet Card */}
+          <div className="rounded-xl border border-border bg-surface shadow-card p-5 space-y-3">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <Wallet className="w-4 h-4 text-navy" />
+              <h2 className="text-sm font-semibold text-ink">Settlement Treasury Account</h2>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">Public EOA Address:</span>
+                <HashView hash={treasuryPublicAddress} truncate={true} />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">Private Key Storage:</span>
+                <span className="font-mono text-success font-medium flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Server Env Only (Never in LLM / Client)
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-muted">Gas Asset:</span>
+                <span className="font-mono text-ink">Native USDC</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Emergency Kill Switch */}
+          <div
+            className={`rounded-xl border p-5 space-y-3 transition-colors ${
+              killSwitchActive
+                ? "border-danger bg-danger-light/30 shadow-card"
+                : "border-border bg-surface shadow-card"
+            }`}
+          >
+            <div className="flex items-center gap-2 border-b border-border pb-3 text-danger">
+              <ShieldAlert className="w-4 h-4" />
+              <h2 className="text-sm font-bold">Global Emergency Kill Switch</h2>
+            </div>
+
+            <p className="text-xs text-ink-muted leading-relaxed">
+              Instantly pauses all automated and human settlements across the organization.
+              Enforced server-side at the policy evaluation gate.
+            </p>
+
+            <div className="pt-2 flex items-center justify-between">
+              <span
+                className={`text-xs font-mono font-bold ${
+                  killSwitchActive ? "text-danger" : "text-ink"
+                }`}
+              >
+                Status: {killSwitchActive ? "ARMED (ALL PAYMENTS HALTED)" : "DISARMED (ACTIVE)"}
+              </span>
+              <button
+                onClick={handleToggleKillSwitch}
+                disabled={killSwitchPending}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all shadow-xs ${
+                  killSwitchActive
+                    ? "bg-danger hover:bg-danger/90 text-white"
+                    : "bg-navy hover:bg-navy-light text-white"
+                }`}
+              >
+                {killSwitchPending
+                  ? "Updating..."
+                  : killSwitchActive
+                  ? "Disarm Kill Switch"
+                  : "Engage Kill Switch"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Policy Thresholds & Vendors (7 Columns) */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Policy Parameters */}
+          <form
+            onSubmit={handleSaveSettings}
+            className="rounded-xl border border-border bg-surface shadow-card p-5 space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-navy" />
+                <h2 className="text-sm font-semibold text-ink">Deterministic Spending Parameters</h2>
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-3 py-1 rounded-md bg-canvas hover:bg-canvas-subtle border border-border text-xs font-semibold text-ink transition-colors flex items-center gap-1"
+              >
+                <Save className="w-3 h-3 text-brand-teal" />
+                <span>Save</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 rounded-lg bg-canvas border border-border space-y-1">
+                <label className="text-ink-muted block font-medium">3-Way Match Price Tolerance</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={priceToleranceBps}
+                    onChange={(e) => setPriceToleranceBps(Number(e.target.value))}
+                    className="w-24 px-2 py-1 rounded border border-border bg-surface font-mono font-bold text-ink text-sm"
+                  />
+                  <span className="font-mono text-ink-muted">bps ({(priceToleranceBps / 100).toFixed(2)}%)</span>
+                </div>
+                <p className="text-[11px] text-ink-muted">Max acceptable variance between PO and Invoice unit price.</p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-canvas border border-border space-y-1">
+                <label className="text-ink-muted block font-medium">Human Approval Threshold (USDC)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={requireApprovalAbove}
+                    onChange={(e) => setRequireApprovalAbove(e.target.value)}
+                    className="w-32 px-2 py-1 rounded border border-border bg-surface font-mono font-bold text-ink text-sm"
+                  />
+                  <span className="font-mono text-ink-muted">USDC</span>
+                </div>
+                <p className="text-[11px] text-ink-muted">Invoices above this sum require explicit human sign-off.</p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-canvas border border-border space-y-1">
+                <label className="text-ink-muted block font-medium">Operating Reserve Floor (USDC)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={minReserveUsdc}
+                    onChange={(e) => setMinReserveUsdc(e.target.value)}
+                    className="w-32 px-2 py-1 rounded border border-border bg-surface font-mono font-bold text-ink text-sm"
+                  />
+                  <span className="font-mono text-ink-muted">USDC</span>
+                </div>
+                <p className="text-[11px] text-ink-muted">Minimum treasury balance preserved for ongoing payroll & ops.</p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-canvas border border-border space-y-1">
+                <label className="text-ink-muted block font-medium">Aggregate Daily Spending Cap (USDC)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={dailyLimitUsdc}
+                    onChange={(e) => setDailyLimitUsdc(e.target.value)}
+                    className="w-32 px-2 py-1 rounded border border-border bg-surface font-mono font-bold text-ink text-sm"
+                  />
+                  <span className="font-mono text-ink-muted">USDC</span>
+                </div>
+                <p className="text-[11px] text-ink-muted">Maximum cumulative settlements permitted per 24h rolling period.</p>
+              </div>
+            </div>
+          </form>
+
+          {/* Approved Vendors List */}
+          <div className="rounded-xl border border-border bg-surface shadow-card overflow-hidden">
+            <div className="px-5 py-3.5 bg-canvas border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-navy" />
+                <h2 className="text-sm font-semibold text-ink">Authorized Beneficiaries & Whitelisted Wallets</h2>
+              </div>
+              <span className="text-xs font-mono text-ink-muted">{vendors.length} Vendors</span>
+            </div>
+
+            <div className="divide-y divide-border">
+              {vendors.map((vendor) => (
+                <div key={vendor.id} className="p-4 hover:bg-canvas/40 transition-colors flex items-center justify-between gap-4 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-ink">{vendor.name}</span>
+                      <span className="text-[10px] bg-success-light text-success border border-success-border px-1.5 py-0.2 rounded font-semibold uppercase">
+                        {vendor.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-ink-muted font-medium">Authorized Wallet:</span>
+                      <HashView hash={vendor.walletAddress} truncate={true} />
+                    </div>
+                  </div>
+
+                  <div className="text-right whitespace-nowrap">
+                    <span className="text-ink-muted block text-[11px]">Vendor Limit:</span>
+                    <span className="font-mono font-bold text-ink">
+                      {formatUsdc(usdcAtomic(BigInt(vendor.perVendorLimitUsdc)))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

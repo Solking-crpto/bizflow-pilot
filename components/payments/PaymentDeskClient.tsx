@@ -339,6 +339,10 @@ export function PaymentDeskClient({
 
             <div className="p-3.5 rounded-lg bg-canvas border border-border space-y-2 text-xs">
               <div className="flex justify-between">
+                <span className="text-ink-muted">Network:</span>
+                <span className="font-mono font-bold text-navy">Arc Mainnet (5042)</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-ink-muted">Settlement Amount:</span>
                 <span className="font-mono font-bold text-ink">{selected.amountFormatted}</span>
               </div>
