@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  currency    String   @default("USDC")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members        Member[]
+  vendors        Vendor[]
+  items          Item[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  invoices       Invoice[]
+  payments       Payment[]
+  auditEvents    AuditEvent[]
+  settings       Setting[]
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  orgId          String
+  email          String
+  role           String       @default("owner") // owner, finance_officer, auditor
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Vendor {
+  id                    String   @id @default(cuid())
+  orgId                 String
+  name                  String
+  walletAddress         String   // EVM address
+  status                String   @default("active") // active, suspended, pending_cooldown
+  perVendorLimitUsdc    BigInt   @default(10000000000) // Atomic units (6 decimals): default 10,000 USDC
+  walletUpdatedAt       DateTime @default(now())
+  walletCooldownUntil   DateTime? // Cooldown expiration timestamp
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+  invoices       Invoice[]
+  payments       Payment[]
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  orgId       String
+  sku         String   @unique
+  name        String
+  unit        String   @default("bags")
+  currentStock Int     @default(0)
+  unitPriceUsdc BigInt  // Atomic 6 decimals
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stockMovements StockMovement[]
+  poLines        POLine[]
+  grLines        GRLine[]
+}
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  itemId      String
+  quantity    Int
+  type        String   // in, out, adjustment
+  reference   String?  // GR ID, PO ID, etc.
+  createdAt   DateTime @default(now())
+
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  orgId       String
+  poNumber    String   @unique
+  vendorId    String
+  network     String   @default("testnet")
+  status      String   @default("approved") // draft, approved, fulfilled, cancelled
+  totalUsdc   BigInt   // Atomic units
+  orderDate   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  vendor        Vendor         @relation(fields: [vendorId], references: [id])
+  lines         POLine[]
+  goodsReceipts GoodsReceipt[]
+  invoices      Invoice[]
+}
+
+model POLine {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  itemId          String
+  quantity        Int
+  unitPriceUsdc   BigInt        // Atomic units
+  totalUsdc       BigInt        // Atomic units
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  item            Item          @relation(fields: [itemId], references: [id])
+}
+
+model GoodsReceipt {
+  id              String        @id @default(cuid())
+  orgId           String
+  grNumber        String        @unique
+  purchaseOrderId String
+  receivedDate    DateTime      @default(now())
+  receivedBy      String        @default("Warehouse Receiving Agent")
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  organization    Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  lines           GRLine[]
+}
+
+model GRLine {
+  id             String       @id @default(cuid())
+  goodsReceiptId String
+  itemId         String
+  quantity       Int
+
+  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  item           Item         @relation(fields: [itemId], references: [id])
+}
+
+model Invoice {
+  id               String       @id @default(cuid())
+  orgId            String
+  vendorId         String
+  purchaseOrderId  String?
+  invoiceNumber    String
+  network          String       @default("testnet")
+  fileHash         String       // SHA-256 of raw invoice / file
+  rawContent       String?      // Stored or extracted text
+  extractedData    String       // JSON string of invoice fields
+  totalUsdc        BigInt       // Atomic 6 decimals
+  status           String       @default("pending_verification") // pending_verification, verified, review_required, blocked, approved, paid
+  matchStatus      String       @default("unmatched") // 3-way match: exact_match, price_mismatch, qty_mismatch, missing_receipt
+  duplicateScore   Int          @default(0) // 0 to 100 duplicate risk score
+  isInjectionSuspect Boolean    @default(false)
+  suspicionNotes   String?
+  dueDate          DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  vendor           Vendor       @relation(fields: [vendorId], references: [id])
+  purchaseOrder    PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  agentRuns        AgentRun[]
+  policyEvaluations PolicyEvaluation[]
+  payments         Payment[]
+}
+
+model AgentRun {
+  id                String       @id @default(cuid())
+  invoiceId         String
+  model             String       // "claude-3-5-sonnet", "gemini-1.5-pro", or "deterministic-fallback"
+  promptVersion     String       @default("v1.0")
+  inputSnapshotHash String       // SHA-256 of full agent input context
+  recommendation    String       // pay_now, schedule, hold, request_review
+  confidence        Float
+  reasoningJson     String       // JSON array of reasoning strings
+  risksJson         String       // JSON array of risk alerts
+  suggestedDate     DateTime?
+  executedAt        DateTime     @default(now())
+
+  invoice           Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model PolicyRule {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. RULE_VENDOR_ACTIVE, RULE_3WAY_MATCH
+  name        String
+  description String
+  isEnabled   Boolean  @default(true)
+  severity    String   @default("block") // block or review
+}
+
+model PolicyEvaluation {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  decision     String   // approve, review, block
+  decisionHash String   // SHA-256 hash of canonical results
+  resultsJson  String   // JSON array of rule results { rule, passed, reason, severity }
+  evaluatedAt  DateTime @default(now())
+
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  orgId           String
+  invoiceId       String
+  vendorId        String
+  network         String       // testnet or mainnet
+  provider        String       // circle or direct
+  idempotencyKey  String       @unique // Unique idempotency key per invoice & network
+  amountAtomic    BigInt       // UsdcAtomic 6 decimals
+  destination     String       // Target EVM address
+  status          String       @default("initiated") // initiated, submitted, confirmed, failed, anchored
+  txHash          String?      // Arc blockchain transaction hash
+  receiptJson     String?      // Raw tx receipt & transfer event verification
+  anchorTxHash    String?      // AuditAnchor.sol transaction hash
+  initiatedAt     DateTime     @default(now())
+  confirmedAt     DateTime?
+  anchoredAt      DateTime?
+
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoice         Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  vendor          Vendor       @relation(fields: [vendorId], references: [id])
+  anchor          Anchor?
+
+  @@index([network, status])
+}
+
+model AuditEvent {
+  id         String       @id @default(cuid())
+  orgId      String
+  eventType  String       // invoice_received, extraction_done, match_result, agent_run, policy_evaluated, payment_submitted, payment_confirmed, anchor_confirmed
+  referenceId String?     // ID of invoice, payment, etc.
+  eventData  String       // Canonical JSON payload
+  prevHash   String       // SHA-256 hash of the immediately preceding event
+  eventHash  String       // SHA-256(prevHash + canonical_json)
+  timestamp  DateTime     @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, timestamp])
+}
+
+model Anchor {
+  id           String   @id @default(cuid())
+  paymentId    String   @unique
+  invoiceHash  String   // bytes32 hex
+  decisionHash String   // bytes32 hex
+  paymentRef   String   // bytes32 hex
+  anchorTxHash String   // Tx hash on Arc network
+  blockNumber  Int?
+  anchoredAt   DateTime @default(now())
+
+  payment      Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id                    String       @id @default(cuid())
+  orgId                 String
+  killSwitchActive      Boolean      @default(false)
+  priceToleranceBps     Int          @default(100) // 100 bps = 1.00%
+  requireApprovalAbove  BigInt       @default(5000000000) // 5,000 USDC default threshold
+  minReserveUsdc        BigInt       @default(2000000000) // 2,000 USDC liquidity buffer
+  dailyLimitUsdc        BigInt       @default(20000000000) // 20,000 USDC daily cap
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  organization          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}

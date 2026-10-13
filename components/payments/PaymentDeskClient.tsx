@@ -1,0 +1,380 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import {
+  CreditCard,
+  ShieldCheck,
+  AlertTriangle,
+  ArrowRight,
+  ExternalLink,
+  CheckCircle2,
+  Lock,
+  Layers,
+  Sparkles,
+  Check,
+  Copy,
+} from "lucide-react";
+import { StatusChip, HashView } from "@/components/ui/StatusChip";
+import { truncateHash } from "@/lib/utils";
+
+export interface PayableInvoiceItem {
+  id: string;
+  invoiceNumber: string;
+  vendorName: string;
+  vendorWallet: string;
+  amountFormatted: string;
+  amountAtomic: string;
+  status: string;
+  matchStatus: string;
+  duplicateScore: number;
+  isInjectionSuspect: boolean;
+  policyDecision: "approve" | "review" | "block";
+  policySummary: string;
+  paymentRecord?: {
+    id: string;
+    txHash?: string | null;
+    anchorTxHash?: string | null;
+    status: string;
+    confirmedAt?: string | null;
+  } | null;
+}
+
+export function PaymentDeskClient({
+  items,
+  networkMode,
+  explorerUrl,
+  maxMainnetPayment,
+}: {
+  items: PayableInvoiceItem[];
+  networkMode: "testnet" | "mainnet";
+  explorerUrl: string;
+  maxMainnetPayment: string;
+}) {
+  const [selectedId, setSelectedId] = useState<string>(items[0]?.id || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMainnetModalOpen, setIsMainnetModalOpen] = useState(false);
+  const [executionResult, setExecutionResult] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const selected = items.find((i) => i.id === selectedId) || items[0];
+
+  const handleExecutePayment = async (hasOwnerConfirmation = false) => {
+    if (!selected) return;
+
+    if (networkMode === "mainnet" && !hasOwnerConfirmation) {
+      setIsMainnetModalOpen(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await fetch("/api/payments/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId: selected.id,
+          hasOwnerConfirmation: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || data.summary || "Payment failed");
+      } else {
+        setExecutionResult(data.payment);
+        setIsMainnetModalOpen(false);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to execute payment");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink flex items-center gap-2">
+            <span>Payment Desk</span>
+            <span className="text-xs font-mono font-medium bg-canvas text-navy px-2 py-0.5 rounded-full border border-border">
+              Idempotent Settlement
+            </span>
+          </h1>
+          <p className="text-sm text-ink-muted mt-0.5">
+            Executes policy-approved USDC settlements on Arc with on-chain audit anchoring.
+          </p>
+        </div>
+      </div>
+
+      {/* Main Split: Queue on Left, Payment Drawer on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Payable Queue */}
+        <div className="lg:col-span-5 rounded-xl border border-border bg-surface shadow-card overflow-hidden">
+          <div className="px-4 py-3 bg-canvas border-b border-border text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center justify-between">
+            <span>Settlement Queue</span>
+            <span>{items.length} Items</span>
+          </div>
+
+          <div className="divide-y divide-border">
+            {items.map((item) => {
+              const isSelected = item.id === selectedId;
+              const isPaid = item.status === "paid" || !!item.paymentRecord;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setSelectedId(item.id);
+                    setExecutionResult(null);
+                    setErrorMsg(null);
+                  }}
+                  className={`p-4 cursor-pointer transition-all ${
+                    isSelected ? "bg-brand-light/40 border-l-4 border-l-brand-teal" : "hover:bg-canvas/60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-ink">{item.invoiceNumber}</span>
+                    <span className="font-mono text-xs font-bold text-ink">{item.amountFormatted}</span>
+                  </div>
+
+                  <div className="mt-1 text-xs text-ink-muted">{item.vendorName}</div>
+
+                  <div className="mt-2.5 flex items-center justify-between">
+                    {isPaid ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success bg-success-light border border-success-border px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" /> Settled on Arc
+                      </span>
+                    ) : item.policyDecision === "approve" ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-teal bg-brand-light border border-brand-teal/30 px-2 py-0.5 rounded-full">
+                        <ShieldCheck className="w-3 h-3" /> Policy Approved
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-danger bg-danger-light border border-danger-border px-2 py-0.5 rounded-full">
+                        <AlertTriangle className="w-3 h-3" /> Policy Blocked
+                      </span>
+                    )}
+
+                    <span className="text-[11px] font-mono text-ink-muted">
+                      {truncateHash(item.vendorWallet)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Payment Detail & Action Panel */}
+        <div className="lg:col-span-7 space-y-4">
+          {selected ? (
+            <div className="rounded-xl border border-border bg-surface shadow-card p-6 space-y-5">
+              {/* Payment Heading */}
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-navy text-white">
+                    <CreditCard className="w-5 h-5 text-brand-teal" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-ink">Settlement Proposal</h2>
+                    <span className="font-mono text-xs text-ink-muted">{selected.invoiceNumber}</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-xl font-mono font-bold text-ink">{selected.amountFormatted}</div>
+                  <span className="text-[11px] text-ink-muted uppercase font-mono">Asset: USDC</span>
+                </div>
+              </div>
+
+              {/* Settlement Parameters */}
+              <div className="space-y-2.5 p-4 rounded-lg bg-canvas border border-border text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">Beneficiary:</span>
+                  <span className="font-semibold text-ink">{selected.vendorName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">Destination Address:</span>
+                  <HashView hash={selected.vendorWallet} truncate={false} />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">Network Target:</span>
+                  <span className="font-mono font-bold text-navy uppercase">
+                    {networkMode} ({networkMode === "mainnet" ? "5042" : "5042002"})
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-ink-muted">Settlement Engine:</span>
+                  <span className="font-mono text-brand-teal font-semibold">DirectEvmProvider / Viem</span>
+                </div>
+              </div>
+
+              {/* Policy Engine Gate Status */}
+              <div
+                className={`p-4 rounded-lg border text-xs ${
+                  selected.policyDecision === "approve"
+                    ? "bg-emerald-50/70 border-emerald-200 text-ink"
+                    : "bg-red-50/70 border-red-200 text-danger"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-semibold">
+                  {selected.policyDecision === "approve" ? (
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-danger" />
+                  )}
+                  <span>Policy Gate Evaluation: {selected.policyDecision.toUpperCase()}</span>
+                </div>
+                <p className="mt-1 text-ink-muted leading-relaxed">{selected.policySummary}</p>
+              </div>
+
+              {/* Error Message if any */}
+              {errorMsg && (
+                <div className="p-3.5 rounded-lg bg-danger-light border border-danger-border text-xs text-danger font-medium">
+                  {errorMsg}
+                </div>
+              )}
+
+              {/* Completed Settlement / Receipt Box */}
+              {(executionResult || selected.paymentRecord) && (
+                <div className="p-4 rounded-xl border border-success-border bg-success-light/40 space-y-3 text-xs">
+                  <div className="flex items-center gap-2 text-success font-bold text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Payment Confirmed & Anchored on Arc</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-ink-muted font-medium">Arc Transfer Tx:</span>
+                      <HashView
+                        hash={executionResult?.txHash || selected.paymentRecord?.txHash}
+                        explorerUrl={`${explorerUrl}/tx/${executionResult?.txHash || selected.paymentRecord?.txHash}`}
+                        truncate={false}
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-ink-muted font-medium">AuditAnchor Contract Tx:</span>
+                      <HashView
+                        hash={executionResult?.anchorTxHash || selected.paymentRecord?.anchorTxHash}
+                        explorerUrl={`${explorerUrl}/tx/${executionResult?.anchorTxHash || selected.paymentRecord?.anchorTxHash}`}
+                        truncate={false}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-success-border/60 flex justify-between items-center">
+                    <span className="text-[11px] text-ink-muted">Public Proof Passport:</span>
+                    <Link
+                      href={`/verify/${executionResult?.id || selected.paymentRecord?.id || selected.id}`}
+                      className="px-2.5 py-1 rounded bg-white border border-border text-xs font-semibold text-navy hover:text-brand-teal transition-colors flex items-center gap-1 shadow-2xs"
+                    >
+                      <span>Open Verified Passport</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-border flex items-center justify-between">
+                <span className="text-xs text-ink-muted font-mono">
+                  Idempotency: PAY-{selected.id}-{networkMode}
+                </span>
+
+                <button
+                  onClick={() => handleExecutePayment(false)}
+                  disabled={
+                    isSubmitting ||
+                    selected.policyDecision === "block" ||
+                    selected.status === "paid" ||
+                    !!selected.paymentRecord
+                  }
+                  className={`px-5 py-2.5 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-2 transition-all ${
+                    selected.status === "paid" || selected.paymentRecord
+                      ? "bg-canvas text-ink-muted cursor-not-allowed border border-border"
+                      : selected.policyDecision === "block"
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : "bg-brand-teal text-white hover:bg-brand-hover shadow-card"
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>
+                    {isSubmitting
+                      ? "Settling on Arc..."
+                      : selected.status === "paid" || selected.paymentRecord
+                      ? "Already Settled"
+                      : selected.policyDecision === "block"
+                      ? "Settlement Blocked"
+                      : `Execute ${selected.amountFormatted} Settlement`}
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-ink-muted border rounded-xl bg-surface">
+              Select an invoice from the settlement queue.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mainnet Safety Confirmation Modal */}
+      {isMainnetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-surface border border-border p-6 shadow-modal space-y-4">
+            <div className="flex items-center gap-3 text-warning border-b border-border pb-3">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <h3 className="text-sm font-bold text-ink">Arc Mainnet Settlement Confirmation</h3>
+            </div>
+
+            <p className="text-xs text-ink-muted leading-relaxed">
+              You are about to execute a real USDC payment on <strong>Arc Mainnet (Chain ID 5042)</strong>.
+              All transfers are permanent and irreversible.
+            </p>
+
+            <div className="p-3.5 rounded-lg bg-canvas border border-border space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Settlement Amount:</span>
+                <span className="font-mono font-bold text-ink">{selected.amountFormatted}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Safety Cap:</span>
+                <span className="font-mono text-ink">{maxMainnetPayment} USDC max</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Beneficiary:</span>
+                <span className="font-semibold text-ink">{selected.vendorName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Destination:</span>
+                <span className="font-mono text-ink text-[11px]">{truncateHash(selected.vendorWallet)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsMainnetModalOpen(false)}
+                className="px-3.5 py-2 rounded-md bg-canvas hover:bg-canvas-subtle border border-border text-xs font-semibold text-ink"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleExecutePayment(true)}
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-md bg-navy text-white text-xs font-semibold hover:bg-navy-light flex items-center gap-1.5 shadow-xs"
+              >
+                <Lock className="w-3.5 h-3.5 text-brand-teal" />
+                <span>Confirm & Authorize Settlement</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
