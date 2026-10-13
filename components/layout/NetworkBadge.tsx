@@ -21,7 +21,7 @@ export function NetworkBadge({ mode }: { mode: "testnet" | "mainnet" }) {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-navy text-white text-xs font-mono font-medium shadow-sm border border-navy-light">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>ARC MAINNET</span>
+        <span className="font-semibold">ARC MAINNET: real USDC</span>
         <span className="text-[10px] text-slate-300 bg-white/10 px-1 py-0.2 rounded">5042</span>
       </div>
     );

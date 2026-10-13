@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Boxes,
 } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { createPublicClient, http } from "viem";
+import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { getActiveNetwork } from "@/lib/networks";
 import { HashView } from "@/components/ui/StatusChip";
@@ -23,52 +24,71 @@ export const dynamic = "force-dynamic";
 
 export default async function VerifyPaymentPassportPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: { txHash?: string; anchorAddress?: string };
 }) {
   const network = getActiveNetwork();
   const id = params.id;
 
   // Attempt to find payment by ID or invoice ID, or fallback to the latest payment/invoice for demo
-  let payment = await prisma.payment.findFirst({
-    where: {
-      OR: [{ id: id }, { invoiceId: id }],
-    },
-    include: {
-      invoice: { include: { policyEvaluations: true, purchaseOrder: true } },
-      vendor: true,
-      organization: true,
-      anchor: true,
-    },
-  });
+  let payment: any = null;
+  let chainVerification = { valid: true, totalEvents: 4 };
 
-  // If no payment found yet (or demo route), look up the first verified invoice
-  if (!payment) {
-    const invoice = await prisma.invoice.findFirst({
-      where: { status: { in: ["verified", "paid"] } },
-      include: {
-        vendor: true,
-        organization: true,
-        purchaseOrder: true,
-        policyEvaluations: true,
-        payments: { include: { anchor: true } },
-      },
-    });
+  try {
+    payment = await withDbTimeout(
+      () =>
+        prisma.payment.findFirst({
+          where: {
+            OR: [{ id: id }, { invoiceId: id }],
+          },
+          include: {
+            invoice: { include: { policyEvaluations: true, purchaseOrder: true } },
+            vendor: true,
+            organization: true,
+            anchor: true,
+          },
+        }),
+      2000
+    );
 
-    if (invoice && invoice.payments.length > 0) {
-      payment = {
-        ...invoice.payments[0],
-        invoice,
-        vendor: invoice.vendor,
-        organization: invoice.organization,
-        anchor: invoice.payments[0].anchor,
-      };
+    // If no payment found yet (or demo route), look up the first verified invoice
+    if (!payment) {
+      const invoice = await withDbTimeout(
+        () =>
+          prisma.invoice.findFirst({
+            where: { status: { in: ["verified", "paid"] } },
+            include: {
+              vendor: true,
+              organization: true,
+              purchaseOrder: true,
+              policyEvaluations: true,
+              payments: { include: { anchor: true } },
+            },
+          }),
+        2000
+      );
+
+      if (invoice && invoice.payments.length > 0) {
+        payment = {
+          ...invoice.payments[0],
+          invoice,
+          vendor: invoice.vendor,
+          organization: invoice.organization,
+          anchor: invoice.payments[0].anchor,
+        };
+      }
     }
-  }
 
-  // Live chain verification
-  const org = await prisma.organization.findFirst();
-  const chainVerification = org ? await verifyAuditChain(org.id) : { valid: true, totalEvents: 1 };
+    // Live chain verification
+    const org = await withDbTimeout(() => prisma.organization.findFirst(), 1500);
+    if (org) {
+      chainVerification = await verifyAuditChain(org.id);
+    }
+  } catch (err) {
+    // Offline / fallback demo mode
+  }
 
   // Fallback demo values if running on a fresh seed before execution
   const invoiceNumber = payment?.invoice.invoiceNumber || "INV-DANGOTE-401";
@@ -82,12 +102,31 @@ export default async function VerifyPaymentPassportPage({
     payment?.invoice.policyEvaluations[0]?.decisionHash ||
     "c8a514d7a46e16b9b4f9797825d7ef1be264e1efebf85d1e70498b9a12e564b1";
   const txHash =
+    searchParams?.txHash ||
     payment?.txHash ||
     "0x9f5a7d65b758269d6c42939b4cb0e7e17eaec596b42b6559d2824dfb5dbd0e82";
   const anchorTxHash =
+    searchParams?.anchorAddress ||
     payment?.anchor?.anchorTxHash ||
     payment?.anchorTxHash ||
     "0x3f5c71a91e5c3e6601cb89b659c235790a88062de3f86e9036c6a51b5e13d8a9";
+
+  // Direct Arc RPC Verification Check
+  let isRpcConfirmed = false;
+  if (txHash && txHash.startsWith("0x")) {
+    try {
+      const publicClient = createPublicClient({
+        chain: network.chain,
+        transport: http(network.rpcUrl, { timeout: 3500 }),
+      });
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (receipt && receipt.status === "success") {
+        isRpcConfirmed = true;
+      }
+    } catch {
+      // Offline fallback
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
@@ -106,6 +145,11 @@ export default async function VerifyPaymentPassportPage({
                 <span className="text-[10px] bg-brand-light text-brand-teal px-2 py-0.5 rounded font-mono font-bold">
                   Arc {network.name}
                 </span>
+                {isRpcConfirmed && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold">
+                    RPC Confirmed
+                  </span>
+                )}
               </div>
               <h1 className="text-xl font-bold text-ink mt-0.5">Cryptographically Verified Settlement</h1>
             </div>

@@ -5,6 +5,7 @@ export interface TransferParams {
   amountAtomic: UsdcAtomic;
   idempotencyKey: string;
   refId: string;
+  dryRun?: boolean;
 }
 
 export interface TransferResult {
