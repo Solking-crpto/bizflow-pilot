@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { InvoiceDeskClient, SerializedInvoice } from "@/components/invoices/InvoiceDeskClient";
@@ -6,6 +7,11 @@ import { DEMO_INVOICES } from "@/lib/demoData";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Invoice Desk & Match Queue | BizFlow Pilot",
+  description: "Autonomous 3-way matching and policy gate verification for inbound invoices.",
+};
 
 export default async function InvoiceDeskPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";

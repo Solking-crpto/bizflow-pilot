@@ -1,8 +1,9 @@
+import { cache } from "react";
 import { prisma, withDbTimeout } from "./db";
 import { formatUsdc, usdcAtomic } from "./money";
 import { DEMO_ORG, DEMO_SETTINGS, DEMO_INVOICES, DEMO_VENDORS } from "./demoData";
 
-export async function getCommandCenterData() {
+export const getCommandCenterData = cache(async () => {
   try {
     const org = await withDbTimeout(
       () =>
@@ -172,4 +173,4 @@ export async function getCommandCenterData() {
     })),
     recentPayments: [],
   };
-}
+});

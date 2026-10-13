@@ -17,10 +17,16 @@ import { getActiveNetwork } from "@/lib/networks";
 import { getTreasuryPublicAddress, getSanitizedPaymentProvider } from "@/lib/treasury";
 import { getTreasuryBalances } from "@/lib/balances";
 import { StatusChip, HashView } from "@/components/ui/StatusChip";
+import type { Metadata } from "next";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 import { LiveProofCard } from "@/components/common/LiveProofCard";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Command Center | BizFlow Pilot",
+  description: "Real-time corporate treasury overview, policy guardrails, and Arc settlement activity.",
+};
 
 export default async function CommandCenterPage() {
   const data = await getCommandCenterData();

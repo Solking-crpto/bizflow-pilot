@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { evaluatePolicy, PolicyContext } from "@/lib/policy/engine";
@@ -9,6 +10,11 @@ import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 import { getTreasuryBalances } from "@/lib/balances";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Payment Desk — Idempotent Arc Settlement | BizFlow Pilot",
+  description: "Execute policy-approved USDC settlements on Arc with on-chain audit anchoring.",
+};
 
 export default async function PaymentsPage() {
   const networkConfig = getActiveNetwork();

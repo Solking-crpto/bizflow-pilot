@@ -1,10 +1,16 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { AuditLedgerClient } from "@/components/audit/AuditLedgerClient";
 import { DEMO_AUDIT_EVENTS, DEMO_ORG } from "@/lib/demoData";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Trust & Audit Ledger — Cryptographic Hash Chain | BizFlow Pilot",
+  description: "Tamper-evident SHA-256 hash chains linking procurement, AI reasoning, policy approval, and Arc settlement.",
+};
 
 export default async function AuditLedgerPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";

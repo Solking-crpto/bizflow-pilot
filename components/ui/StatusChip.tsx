@@ -33,22 +33,29 @@ export function StatusChip({ status, label, size = "md" }: StatusChipProps) {
   let Icon = Clock;
   let text = label || status;
 
-  if (["verified", "approved", "exact_match", "settled", "anchored"].includes(norm)) {
+  if (["verified", "approved", "exact_match"].includes(norm)) {
     styles = "bg-success-light text-success border-success-border";
     Icon = CheckCircle2;
     if (!label) {
       if (norm === "exact_match") text = "3-Way Matched";
       if (norm === "verified") text = "Verified";
-      if (norm === "settled") text = "Settled on Arc";
-      if (norm === "anchored") text = "On-Chain Anchored";
+      if (norm === "approved") text = "Approved";
     }
+  } else if (norm === "settled") {
+    styles = "bg-teal-50 text-teal-800 border-teal-200";
+    Icon = CheckCircle2;
+    if (!label) text = "Settled on Arc";
+  } else if (norm === "anchored") {
+    styles = "bg-blue-50 text-blue-700 border-blue-200";
+    Icon = CheckCircle2;
+    if (!label) text = "On-Chain Anchored";
   } else if (["review_required", "needs_review", "qty_mismatch", "price_mismatch", "pending"].includes(norm)) {
     styles = "bg-warning-light text-warning border-warning-border";
     Icon = AlertTriangle;
     if (!label) {
       if (norm === "qty_mismatch") text = "Qty Discrepancy";
       if (norm === "price_mismatch") text = "Price Tolerance Exceeded";
-      if (norm === "review_required") text = "Review Required";
+      if (norm === "review_required" || norm === "needs_review") text = "Needs Review";
     }
   } else if (["blocked", "duplicate", "injection_suspect", "failed"].includes(norm)) {
     styles = "bg-danger-light text-danger border-danger-border";

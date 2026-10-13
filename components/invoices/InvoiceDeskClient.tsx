@@ -134,7 +134,7 @@ export function InvoiceDeskClient({ invoices }: { invoices: SerializedInvoice[] 
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs font-bold text-ink">{inv.invoiceNumber}</span>
-                    <span className="font-mono text-xs font-bold text-ink">{inv.amountFormatted}</span>
+                    <span className="font-mono text-xs font-bold text-ink tabular-nums">{inv.amountFormatted}</span>
                   </div>
 
                   <div className="mt-1 text-xs text-ink-muted truncate">{inv.vendorName}</div>

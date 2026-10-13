@@ -106,6 +106,16 @@ export function PaymentDeskClient({
     }
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMainnetModalOpen) {
+        setIsMainnetModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMainnetModalOpen]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -167,7 +177,7 @@ export function PaymentDeskClient({
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold text-ink">{item.invoiceNumber}</span>
-                    <span className="font-mono text-xs font-bold text-ink">{item.amountFormatted}</span>
+                    <span className="font-mono text-xs font-bold text-ink tabular-nums">{item.amountFormatted}</span>
                   </div>
 
                   <div className="mt-1 text-xs text-ink-muted">{item.vendorName}</div>
@@ -214,7 +224,7 @@ export function PaymentDeskClient({
                 </div>
 
                 <div className="text-right">
-                  <div className="text-xl font-mono font-bold text-ink">{selected.amountFormatted}</div>
+                  <div className="text-xl font-mono font-bold text-ink tabular-nums">{selected.amountFormatted}</div>
                   <span className="text-[11px] text-ink-muted uppercase font-mono">Asset: USDC</span>
                 </div>
               </div>
@@ -371,7 +381,7 @@ export function PaymentDeskClient({
               </div>
               <div className="flex justify-between">
                 <span className="text-ink-muted">Settlement Amount:</span>
-                <span className="font-mono font-bold text-ink">{selected.amountFormatted}</span>
+                <span className="font-mono font-bold text-ink tabular-nums">{selected.amountFormatted}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-ink-muted">Safety Cap:</span>

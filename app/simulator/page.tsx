@@ -1,10 +1,16 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { PolicySimulatorClient } from "@/components/simulator/PolicySimulatorClient";
 import { DEMO_INVOICES } from "@/lib/demoData";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Policy Simulator — Governance & Guardrail Playground | BizFlow Pilot",
+  description: "Interactive simulator for policy thresholds, anomaly injection testing, and kill-switch verification.",
+};
 
 export default async function PolicySimulatorPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";

@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -13,6 +14,11 @@ import {
   Boxes,
   CheckCircle2,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "About & Trust Architecture | BizFlow Pilot",
+  description: "Cryptographic trust model, decentralized settlement guarantees, and decoupled AI execution on Arc.",
+};
 
 export default function AboutPage() {
   return (

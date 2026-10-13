@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Boxes, PackageCheck, FileText, ArrowRight, CheckCircle2, TrendingDown } from "lucide-react";
 import { prisma, withDbTimeout } from "@/lib/db";
@@ -7,6 +8,11 @@ import { DEMO_ITEMS, DEMO_PURCHASE_ORDERS } from "@/lib/demoData";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Inventory & POs | BizFlow Pilot",
+  description: "Enterprise purchase orders, goods receipt notes, and verified inventory ledger.",
+};
 
 export default async function InventoryPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";

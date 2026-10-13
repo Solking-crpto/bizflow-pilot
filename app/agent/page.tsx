@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { formatUsdc, usdcAtomic } from "@/lib/money";
 import { runAgentAnalysis } from "@/lib/agent/recommender";
@@ -8,6 +9,11 @@ import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 import { getTreasuryBalances } from "@/lib/balances";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "AI Finance Agent — Autonomous Treasury Advisory | BizFlow Pilot",
+  description: "AI Agent proposal engine decoupled from deterministic policy execution.",
+};
 
 export default async function AgentPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";

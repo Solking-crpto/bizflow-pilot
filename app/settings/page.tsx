@@ -1,4 +1,5 @@
 import React from "react";
+import type { Metadata } from "next";
 import { prisma, withDbTimeout } from "@/lib/db";
 import { getTreasuryPublicAddress } from "@/lib/treasury";
 import { DEMO_SETTINGS, DEMO_VENDORS } from "@/lib/demoData";
@@ -6,6 +7,11 @@ import { SettingsClient, SerializedSettings, SerializedVendor } from "@/componen
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Rules & Settings — Governance & Security Controls | BizFlow Pilot",
+  description: "Configure policy limits, corporate approval thresholds, approved vendors, and emergency halts.",
+};
 
 export default async function SettingsPage() {
   const isMainnet = (process.env.NEXT_PUBLIC_NETWORK_MODE || process.env.NETWORK_MODE) === "mainnet";
