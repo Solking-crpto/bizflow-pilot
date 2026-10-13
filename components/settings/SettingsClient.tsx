@@ -143,6 +143,14 @@ export function SettingsClient({
         </div>
       </div>
 
+      {/* Read-only / Visitor Notice */}
+      <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-blue-900 flex items-center gap-2">
+        <Lock className="w-4 h-4 text-navy shrink-0" />
+        <span>
+          <strong>Read-only for visitors.</strong> Modifying governance parameters or triggering the kill-switch requires the owner passcode on Arc Mainnet.
+        </span>
+      </div>
+
       {saveSuccess && (
         <div className="p-3.5 rounded-xl bg-success-light border border-success-border text-xs text-success font-semibold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />

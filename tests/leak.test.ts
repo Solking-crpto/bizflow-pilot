@@ -4,6 +4,7 @@ const APP_URL = process.env.APP_URL || "http://localhost:3001";
 
 const ROUTES = [
   "/",
+  "/judges",
   "/inventory",
   "/invoices",
   "/agent",

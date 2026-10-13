@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { verifyOwnerPasscode } from "../lib/security/auth";
+import {
+  verifyOwnerPasscode,
+  verifyOwnerPasscodeWithRateLimit,
+  clearAllRateLimits,
+} from "../lib/security/auth";
 import { getDbTimeoutMs } from "../lib/db";
 
 describe("Owner Passcode & Database Timeout Enforcement", () => {
@@ -79,6 +83,48 @@ describe("Owner Passcode & Database Timeout Enforcement", () => {
 
       const result = verifyOwnerPasscode("SuperSecurePasscode123");
       expect(result.authorized).toBe(true);
+    });
+
+    it("locks out client after 5 failed attempts within 5 minutes returning 429", () => {
+      process.env.NEXT_PUBLIC_NETWORK_MODE = "mainnet";
+      process.env.OWNER_PASSCODE = "SuperSecurePasscode123";
+      const ip = "192.168.1.100";
+      clearAllRateLimits();
+
+      // 5 failed attempts
+      for (let i = 0; i < 5; i++) {
+        const res = verifyOwnerPasscodeWithRateLimit("WrongCode", ip);
+        expect(res.authorized).toBe(false);
+        expect(res.status).toBe(401);
+      }
+
+      // 6th attempt is rate-limited to 429
+      const lockedRes = verifyOwnerPasscodeWithRateLimit("WrongCode", ip);
+      expect(lockedRes.authorized).toBe(false);
+      expect(lockedRes.status).toBe(429);
+      expect(lockedRes.error).toContain("Too many failed passcode attempts");
+      expect(lockedRes.retryAfterSeconds).toBeGreaterThan(0);
+    });
+
+    it("resets rate limit counter on successful authorization", () => {
+      process.env.NEXT_PUBLIC_NETWORK_MODE = "mainnet";
+      process.env.OWNER_PASSCODE = "SuperSecurePasscode123";
+      const ip = "192.168.1.101";
+      clearAllRateLimits();
+
+      // 2 failed attempts
+      verifyOwnerPasscodeWithRateLimit("WrongCode", ip);
+      verifyOwnerPasscodeWithRateLimit("WrongCode", ip);
+
+      // Successful attempt
+      const successRes = verifyOwnerPasscodeWithRateLimit("SuperSecurePasscode123", ip);
+      expect(successRes.authorized).toBe(true);
+
+      // Counter was reset
+      for (let i = 0; i < 4; i++) {
+        const res = verifyOwnerPasscodeWithRateLimit("WrongCode", ip);
+        expect(res.status).toBe(401);
+      }
     });
   });
 });

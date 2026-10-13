@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withDbTimeout } from "@/lib/db";
-import { verifyOwnerPasscode } from "@/lib/security/auth";
+import { verifyOwnerPasscodeWithRateLimit, getClientIp } from "@/lib/security/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIp(req);
     const body = await req.json();
 
-    // Enforce owner passcode on Mainnet
-    const authCheck = verifyOwnerPasscode(body.passcode);
+    // Enforce owner passcode with rate limiting on Mainnet
+    const authCheck = verifyOwnerPasscodeWithRateLimit(body.passcode, clientIp);
     if (!authCheck.authorized) {
-      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+      return NextResponse.json(
+        { error: authCheck.error },
+        {
+          status: authCheck.status || 401,
+          headers: authCheck.retryAfterSeconds
+            ? { "Retry-After": authCheck.retryAfterSeconds.toString() }
+            : {},
+        }
+      );
     }
 
     const org = await withDbTimeout(() => prisma.organization.findFirst({ include: { settings: true } }), 2000);

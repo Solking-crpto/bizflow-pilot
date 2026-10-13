@@ -10,8 +10,7 @@ import { recordAuditEvent } from "@/lib/audit/ledger";
 import { getActiveNetwork } from "@/lib/networks";
 import { usdcAtomic, parseUsdc } from "@/lib/money";
 import { sha256 } from "@/lib/crypto";
-
-import { verifyOwnerPasscode } from "@/lib/security/auth";
+import { verifyOwnerPasscodeWithRateLimit, getClientIp } from "@/lib/security/auth";
 
 const ExecutePaymentSchema = z.object({
   invoiceId: z.string(),
@@ -21,6 +20,7 @@ const ExecutePaymentSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIp(req);
     const body = await req.json();
     const parsed = ExecutePaymentSchema.safeParse(body);
     if (!parsed.success) {
@@ -29,10 +29,18 @@ export async function POST(req: NextRequest) {
 
     const { invoiceId, hasOwnerConfirmation, passcode } = parsed.data;
 
-    // Enforce owner passcode on Mainnet
-    const authCheck = verifyOwnerPasscode(passcode);
+    // Enforce owner passcode with rate limiting on Mainnet
+    const authCheck = verifyOwnerPasscodeWithRateLimit(passcode, clientIp);
     if (!authCheck.authorized) {
-      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+      return NextResponse.json(
+        { error: authCheck.error },
+        {
+          status: authCheck.status || 401,
+          headers: authCheck.retryAfterSeconds
+            ? { "Retry-After": authCheck.retryAfterSeconds.toString() }
+            : {},
+        }
+      );
     }
 
     // 1. Fetch Invoice with Vendor, Org, Settings

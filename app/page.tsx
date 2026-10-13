@@ -18,6 +18,7 @@ import { getTreasuryPublicAddress, getSanitizedPaymentProvider } from "@/lib/tre
 import { getTreasuryBalances } from "@/lib/balances";
 import { StatusChip, HashView } from "@/components/ui/StatusChip";
 import { DatabaseErrorState } from "@/components/common/DatabaseErrorState";
+import { LiveProofCard } from "@/components/common/LiveProofCard";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,8 @@ export default async function CommandCenterPage() {
       </div>
     );
   }
+
+  const latestConfirmedPayment = data.recentPayments.find((p) => p.status === "confirmed") || null;
 
   return (
     <div className="space-y-6">
@@ -71,6 +74,9 @@ export default async function CommandCenterPage() {
           </Link>
         </div>
       </div>
+
+      {/* Live Proof Card (Real On-Chain Settlement) */}
+      <LiveProofCard payment={latestConfirmedPayment} explorerUrl={network.explorerUrl} />
 
       {/* KPI Overview Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

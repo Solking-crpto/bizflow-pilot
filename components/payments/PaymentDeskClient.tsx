@@ -131,6 +131,14 @@ export function PaymentDeskClient({
         )}
       </div>
 
+      {/* Read-only / Visitor Notice */}
+      <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-blue-900 flex items-center gap-2">
+        <Lock className="w-4 h-4 text-navy shrink-0" />
+        <span>
+          <strong>Read-only for visitors.</strong> Payments require the owner passcode. Reviewers can freely inspect the verified matching records, AI decision trails, and on-chain settlement proofs without any login.
+        </span>
+      </div>
+
       {/* Main Split: Queue on Left, Payment Drawer on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Payable Queue */}
