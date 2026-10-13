@@ -22,8 +22,7 @@ export const getCommandCenterData = cache(async () => {
             purchaseOrders: true,
             vendors: true,
           },
-        }),
-      2500
+        })
     );
 
     if (org && org.invoices.length > 0) {

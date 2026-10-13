@@ -67,3 +67,42 @@
 - [x] Created `scripts/writeMainnetProof.ts` and generated `docs/MAINNET_PROOF.md`.
 - [x] Updated `README.md` with comprehensive instructions, architecture diagram, security guarantees, and execution guides.
 - [x] Milestone commit: `docs: update documentation, proof template, and build configurations`
+
+---
+
+## DoraHacks Arc Microgrants Judge Readiness (October 2026 Hardening)
+
+### P0 — Data Safety & Honesty
+- [x] Guard `scripts/seedMainnet.ts` against accidental execution if confirmed mainnet payments exist (requires `--force-wipe`).
+- [x] Create non-destructive `scripts/relabelMainnetDemo.ts` (updates counterparty to fictional "Northgate Cement Supply (demo vendor)").
+- [x] Remove "Verified" from vendor names across seeds and demo data; relabel org chip to "DEMO ORG"; add footer note: "Demo-scale data: amounts capped at 1 USDC".
+- [x] Pluralize Command Center copy ("1 item", "items"); align Action Required counts; split payables into awaiting settlement vs settled to date.
+- [x] Treasury card: show USDC balance and explain dual gas/settlement role on Arc.
+- [x] Mainnet error handling: never use demo fallback on mainnet DB errors, provide Retry.
+- [x] Milestone commit: `feat(p0): data safety, demo vendor relabeling, and honesty improvements` (`1f8f92c`)
+
+### P1 — Judge Experience & Public APIs
+- [x] Create `/judges` guide: pitch, dynamic compliance table, 5-minute evaluation path, and real vs demo disclosures.
+- [x] Command Center `LiveProofCard`: display latest confirmed settlement, amount, vendor, copyable tx hash, anchor tx, and link to `/verify/[id]`.
+- [x] Visitor notice on Payment Desk and Settings ("Read-only for visitors. Payments require the owner passcode.").
+- [x] Sliding-window rate limiting on sensitive passcode endpoints (max 5 failed attempts in 5 min -> HTTP 429).
+- [x] Public endpoints: `/api/proof` (cached 30s) and `/api/health` (live diagnostics).
+- [x] Arc RPC live verification widget on `/verify/[id]` (`/api/audit/verify-rpc`).
+- [x] Milestone commit: `feat(p1): add judge guide, live proof card, public proof/health apis, and rpc verification` (`e0f20b2`)
+
+### P2 — UI Polish & Performance
+- [x] Custom 404 page (`app/not-found.tsx`) with direct navigation links.
+- [x] Route metadata & OpenGraph tags on all routes.
+- [x] Memoized `getCommandCenterData` with React `cache()` and unified timeout.
+- [x] Modals dismissible on Escape key; `tabular-nums` formatting for all monetary displays.
+- [x] Status chip color styling: Verified=green, Needs review=amber, Blocked=red, Settled=teal, Anchored=blue.
+- [x] Milestone commit: `style(p2): polish metadata, 404 handler, chip styling, and modal ergonomics` (`4937b01`)
+
+### P3 — Repository, Docs, Final Verification
+- [x] MIT `LICENSE` file.
+- [x] Judge-centric `README.md` rewrite (pitch, live links, real 0.50 USDC tx hash, anchor contract, mermaid diagrams, trust model).
+- [x] Updated `docs/SUBMISSION.md` and `docs/DEMO_SCRIPT.md` with verified mainnet hashes and fictional demo vendor.
+- [x] Playwright smoke suite (`tests-e2e/smoke.spec.ts`): 7/7 passed.
+- [x] Vitest test suite (`npm test`): 10 test files, 55 tests passed.
+- [x] Production build (`npx next build`): 13 static & dynamic routes compiled and optimized cleanly.
+

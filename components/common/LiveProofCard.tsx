@@ -10,7 +10,7 @@ export interface LiveProofData {
   invoiceNumber: string;
   vendorName: string;
   amountFormatted: string;
-  txHash: string;
+  txHash?: string | null;
   anchorTxHash?: string | null;
   network?: string;
   confirmedAt?: string | null;
@@ -44,9 +44,11 @@ export function LiveProofCard({ payment, explorerUrl = "https://explorer.arc.io"
   }
 
   const handleCopyTx = () => {
-    navigator.clipboard.writeText(payment.txHash);
-    setCopiedTx(true);
-    setTimeout(() => setCopiedTx(false), 2000);
+    if (payment.txHash) {
+      navigator.clipboard.writeText(payment.txHash);
+      setCopiedTx(true);
+      setTimeout(() => setCopiedTx(false), 2000);
+    }
   };
 
   const handleCopyAnchor = () => {
