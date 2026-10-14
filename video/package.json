@@ -1,0 +1,12 @@
+{
+  "name": "bizflow-video",
+  "version": "1.0.0",
+  "description": "Video production pipeline for BizFlow Pilot hackathon demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-env": "node scripts/check-env.js",
+    "generate-audio": "node scripts/generate-audio.js",
+    "render": "node scripts/render.js"
+  }
+}

@@ -40,3 +40,10 @@ next-env.d.ts
 # SQLite local database
 prisma/*.db
 prisma/*.db-journal
+
+# video production
+.env.video.local
+video/cache/
+video/assets/
+video-out/
+
